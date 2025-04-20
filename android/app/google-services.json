@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "886856008819",
+    "project_id": "flutternewchatapp",
+    "storage_bucket": "flutternewchatapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:886856008819:android:cb7e5f2abfd2343a871606",
+        "android_client_info": {
+          "package_name": "com.glare.messagesappnew"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_BOtKk2i49KnnK8iazGnvjK5lMHQQRp4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

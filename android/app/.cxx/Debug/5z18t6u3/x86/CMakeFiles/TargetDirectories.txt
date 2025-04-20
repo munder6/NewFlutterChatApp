@@ -1,0 +1,2 @@
+/Users/munder/Desktop/meassagesapp/android/app/.cxx/Debug/5z18t6u3/x86/CMakeFiles/edit_cache.dir
+/Users/munder/Desktop/meassagesapp/android/app/.cxx/Debug/5z18t6u3/x86/CMakeFiles/rebuild_cache.dir
