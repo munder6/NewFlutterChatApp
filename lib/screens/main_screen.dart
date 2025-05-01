@@ -91,21 +91,28 @@ class _MainScreenState extends State<MainScreen> {
         height: 92,
         child: BottomNavigationBar(
           backgroundColor: isDarkMode ? Colors.grey[900] : Colors.grey[100],
-          selectedItemColor: Colors.blue[800],
-          unselectedItemColor: Colors.grey,
+          selectedItemColor: Colors.blue[700],
+          unselectedItemColor: Colors.white,
           currentIndex: _selectedIndex,
           onTap: (index) => setState(() => _selectedIndex = index),
           items: [
             BottomNavigationBarItem(
-              icon: SvgPicture.asset('assets/icons/convs.svg', color: Colors.blue[800],),
+              icon: SvgPicture.asset(
+                'assets/icons/convs.svg',
+                color: _selectedIndex == 0 ? Colors.blue[700] : Colors.white, // تغيير اللون عند التحديد
+              ),
               label: 'Chats',
             ),
             const BottomNavigationBarItem(
               icon: Icon(EvaIcons.editOutline),
               label: 'New Chat',
             ),
-             BottomNavigationBarItem(
-              icon: SvgPicture.asset('assets/icons/settings.svg', color: Colors.blue[800],width: 25,),
+            BottomNavigationBarItem(
+              icon: SvgPicture.asset(
+                'assets/icons/settings.svg',
+                width: 25,
+                color: _selectedIndex == 2 ? Colors.blue[700] : Colors.white, // تغيير اللون عند التحديد
+              ),
               label: 'Settings',
             ),
           ],

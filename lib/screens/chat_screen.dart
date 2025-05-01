@@ -2,12 +2,13 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:meassagesapp/screens/users_profils_screens.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../controller/chat_controller.dart';
 import '../widgets/message_card.dart';
@@ -17,13 +18,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
 
 class ChatScreen extends StatefulWidget {
   final String receiverId;
   final String receiverName;
   final String receiverUsername;
-  final String receiverImage; // ✅ أضف هذا
-
+  final String receiverImage;
 
   const ChatScreen({
     required this.receiverId,
@@ -159,22 +160,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     return Center(child: Text("No messages"));
                   }
                   List<MessageModel> messages = snapshot.data!;
-                  return SingleChildScrollView(
-                    reverse: true,
-                    padding: EdgeInsets.symmetric(vertical: 10),
-                    child: Column(
-                      children: List.generate(messages.length, (index) {
-                        final msg = messages[index];
-                        final prev = index < messages.length - 1 ? messages[index + 1] : null;
-                        final next = index > 0 ? messages[index - 1] : null;
-                        return MessageCard(
-                          message: msg,
-                          previousMessage: prev,
-                          nextMessage: next,
-                          isSender: msg.senderId == senderId,
-                        );
-                      }),
-                    ),
+                  return MessageList(
+                    messages: messages.reversed.toList(),
+                    currentUserId: senderId,
                   );
                 },
               ),
@@ -188,8 +176,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   PreferredSizeWidget _buildAppBar(bool isDarkMode) {
+    // ... كود الاب بار بدون تغيير ...
     return PreferredSize(
-      preferredSize: Size.fromHeight(44),
+      preferredSize: Size.fromHeight(50),
       child: ClipRRect(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
@@ -199,139 +188,132 @@ class _ChatScreenState extends State<ChatScreen> {
                 : Colors.white.withOpacity(0.3),
             elevation: 0,
             leading: IconButton(
-                icon: Icon(Icons.arrow_back),
+                icon: Icon(CupertinoIcons.back),
                 onPressed: () => Get.back()),
-            title: Row(
-              children: [
-                // صورة المستخدم
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: CachedNetworkImage(
-                    imageUrl: widget.receiverImage,
-                    height: 40,
-                    width: 40,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) =>
-                        CircleAvatar(backgroundColor: Colors.grey.shade300),
-                    errorWidget: (context, url, error) =>
-                        CircleAvatar(backgroundColor: Colors.grey.shade300),
+            title: GestureDetector(
+              onTap: (){
+                Get.to(() => UserProfileScreen(
+                  receiverId: widget.receiverId,
+                  receiverName: widget.receiverName,
+                  receiverUsername: widget.receiverUsername,
+                  receiverImage: widget.receiverImage,
+                ));
+              },
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: CachedNetworkImage(
+                      imageUrl: widget.receiverImage,
+                      height: 40,
+                      width: 40,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) =>
+                          CircleAvatar(backgroundColor: Colors.grey.shade300),
+                      errorWidget: (context, url, error) =>
+                          CircleAvatar(backgroundColor: Colors.grey.shade300),
+                    ),
                   ),
-                ),
-                SizedBox(width: 10),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(widget.receiverName,
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                        StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(widget.receiverId)
+                              .snapshots(),
+                          builder: (context, firestoreSnap) {
+                            String status = "";
 
-                // الاسم والحالة
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(widget.receiverName,
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold)),
+                            if (firestoreSnap.hasData &&
+                                firestoreSnap.data!.exists) {
+                              final firestoreData = firestoreSnap.data!.data()
+                              as Map<String, dynamic>;
 
-                      // حالة المستخدم (Typing, Online, Last seen)
-                      StreamBuilder<DocumentSnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(widget.receiverId)
-                            .snapshots(),
-                        builder: (context, firestoreSnap) {
-                          String status = "";
+                              final isTyping = firestoreData['isTyping'] ?? false;
 
-                          if (firestoreSnap.hasData &&
-                              firestoreSnap.data!.exists) {
-                            final firestoreData = firestoreSnap.data!.data()
-                            as Map<String, dynamic>;
+                              if (isTyping) {
+                                status = "Typing...";
+                              }
 
-                            final isTyping = firestoreData['isTyping'] ?? false;
+                              return StreamBuilder(
+                                stream: FirebaseDatabase.instance
+                                    .ref("status/${widget.receiverId}")
+                                    .onValue,
+                                builder: (context, realtimeSnap) {
+                                  if (realtimeSnap.hasData &&
+                                      realtimeSnap.data!.snapshot.value != null) {
+                                    final realtimeData =
+                                    Map<String, dynamic>.from(
+                                        realtimeSnap.data!.snapshot.value
+                                        as Map);
 
-                            if (isTyping) {
-                              status = "Typing...";
-                            }
+                                    final isOnline =
+                                        realtimeData['isOnline'] == true;
+                                    final lastSeen = realtimeData['lastSeen'];
 
-                            return StreamBuilder(
-                              stream: FirebaseDatabase.instance
-                                  .ref("status/${widget.receiverId}")
-                                  .onValue,
-                              builder: (context, realtimeSnap) {
-                                if (realtimeSnap.hasData &&
-                                    realtimeSnap.data!.snapshot.value != null) {
-                                  final realtimeData =
-                                  Map<String, dynamic>.from(
-                                      realtimeSnap.data!.snapshot.value
-                                      as Map);
+                                    if (!isTyping) {
+                                      if (isOnline) {
+                                        status = "Online";
+                                      } else if (lastSeen != null) {
+                                        final seen = DateTime
+                                            .fromMillisecondsSinceEpoch(lastSeen);
+                                        final diff =
+                                        DateTime.now().difference(seen);
 
-                                  final isOnline =
-                                      realtimeData['isOnline'] == true;
-                                  final lastSeen = realtimeData['lastSeen'];
-
-                                  if (!isTyping) {
-                                    if (isOnline) {
-                                      status = "Online";
-                                    } else if (lastSeen != null) {
-                                      final seen = DateTime
-                                          .fromMillisecondsSinceEpoch(lastSeen);
-                                      final diff =
-                                      DateTime.now().difference(seen);
-
-                                      if (diff.inMinutes < 1) {
-                                        status = "Last seen just now";
-                                      } else if (diff.inMinutes < 60) {
-                                        status =
-                                        "Last seen ${diff.inMinutes}m ago";
-                                      } else if (diff.inHours < 24) {
-                                        status =
-                                        "Last seen ${diff.inHours}h ago";
-                                      } else {
-                                        status =
-                                        "Last seen on ${seen.day}/${seen.month}";
+                                        if (diff.inMinutes < 1) {
+                                          status = "Last seen just now";
+                                        } else if (diff.inMinutes < 60) {
+                                          status =
+                                          "Last seen ${diff.inMinutes}m ago";
+                                        } else if (diff.inHours < 24) {
+                                          status =
+                                          "Last seen ${diff.inHours}h ago";
+                                        } else {
+                                          status =
+                                          "Last seen on ${seen.day}/${seen.month}";
+                                        }
                                       }
                                     }
                                   }
-                                }
 
-                                return Text(
-                                  status,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: status == "Online" ||
-                                        status == "Typing..."
-                                        ? Colors.green
-                                        : Colors.grey,
-                                  ),
-                                );
-                              },
-                            );
-                          }
+                                  return Text(
+                                    status,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: status == "Online" ||
+                                          status == "Typing..."
+                                          ? Colors.green
+                                          : Colors.grey,
+                                    ),
+                                  );
+                                },
+                              );
+                            }
 
-                          return SizedBox();
-                        },
-                      ),
-                    ],
+                            return SizedBox();
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            actions: [
-              IconButton(icon: Icon(Icons.call), onPressed: () {}),
-              IconButton(icon: Icon(Icons.videocam), onPressed: () {}),
-            ],
+            // actions: [
+            //   IconButton(icon: Icon(Icons.call), onPressed: () {}),
+            //   IconButton(icon: Icon(Icons.videocam), onPressed: () {}),
+            // ],
           ),
         ),
       ),
     );
   }
-
-
-  //
-  // Widget _buildUserTitle(String status) {
-  //   return Column(
-  //     crossAxisAlignment: CrossAxisAlignment.start,
-  //     children: [
-  //       Text(widget.receiverName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-  //       if (status.isNotEmpty) Text(status, style: TextStyle(fontSize: 12, color: Colors.green)),
-  //     ],
-  //   );
-  // }
 
   Widget _buildInputBar(bool isDarkMode, String senderId) {
     return Container(

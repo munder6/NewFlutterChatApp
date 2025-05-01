@@ -6,6 +6,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../models/message_model.dart';
 
 class ChatController extends GetxController {
@@ -13,7 +14,6 @@ class ChatController extends GetxController {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final box = GetStorage();
   final ImagePicker _picker = ImagePicker();
-
 
   // قائمة الرسائل
   var messages = <MessageModel>[].obs;
@@ -37,7 +37,6 @@ class ChatController extends GetxController {
       String? receiverUsername = box.read('receiverUsername_$receiverId');
       String? receiverImage = box.read('receiverImage_$receiverId');
 
-      // 🔍 تحميل بيانات المستقبل إذا مش محفوظة
       if (receiverName == null || receiverUsername == null || receiverImage == null) {
         DocumentSnapshot receiverDoc =
         await _firestore.collection('users').doc(receiverId).get();
@@ -55,7 +54,6 @@ class ChatController extends GetxController {
         }
       }
 
-      // 📨 إنشاء الرسالة
       String messageId = _firestore.collection('messages').doc().id;
       MessageModel message = MessageModel(
         id: messageId,
@@ -72,7 +70,6 @@ class ChatController extends GetxController {
         replyToStoryId: replyToStoryId,
       );
 
-      // ✅ أضف الرسالة إلى كلا الطرفين
       await _firestore
           .collection('users')
           .doc(senderId)
@@ -89,7 +86,6 @@ class ChatController extends GetxController {
           .collection('messages')
           .add(message.toMap());
 
-      // ✅ تحديث محادثة المستقبل (مع صورة المرسل)
       DocumentReference receiverChatRef = _firestore
           .collection('users')
           .doc(receiverId)
@@ -113,7 +109,6 @@ class ChatController extends GetxController {
         }, SetOptions(merge: true));
       });
 
-      // ✅ تحديث محادثة المرسل (مع صورة المستقبل)
       DocumentReference senderChatRef = _firestore
           .collection('users')
           .doc(senderId)
@@ -133,12 +128,9 @@ class ChatController extends GetxController {
     }
   }
 
-
-  // ✅ اختيار صورة أو فيديو وإرسالها
   Future<void> pickMedia(
       String senderId, String receiverId, ImageSource source, bool isVideo) async {
     try {
-      // 🔐 التحقق من الصلاحيات
       bool permissionGranted = false;
 
       if (source == ImageSource.gallery) {
@@ -164,10 +156,9 @@ class ChatController extends GetxController {
         return;
       }
 
-      // ✅ التقاط الملف
       final XFile? mediaFile = isVideo
-          ? await ImagePicker().pickVideo(source: source)
-          : await ImagePicker().pickImage(source: source);
+          ? await _picker.pickVideo(source: source)
+          : await _picker.pickImage(source: source);
 
       if (mediaFile == null) {
         Get.snackbar("إلغاء", "لم يتم اختيار أي ملف.");
@@ -186,14 +177,32 @@ class ChatController extends GetxController {
       String fileName = DateTime.now().millisecondsSinceEpoch.toString();
       String fileType = isVideo ? "video" : "image";
 
-      // 📂 انسخ الملف إلى مجلد مؤقت آمن (لحل مشكلة iOS Simulator)
       final Directory tempDir = await getTemporaryDirectory();
       final String safePath = '${tempDir.path}/$fileName';
       final File safeFile = await originalFile.copy(safePath);
 
       print("📁 نسخة آمنة محفوظة في: $safePath");
 
-      // 📦 تأمين المسار من الرموز الغريبة
+      File fileToUpload = safeFile;
+
+      if (!isVideo) {
+        final compressedBytes = await FlutterImageCompress.compressWithFile(
+          safeFile.absolute.path,
+          quality: 70,
+          format: CompressFormat.jpeg,
+        );
+
+        if (compressedBytes != null) {
+          final compressedFile = File('${tempDir.path}/compressed_$fileName.jpg');
+          await compressedFile.writeAsBytes(compressedBytes);
+          fileToUpload = compressedFile;
+          print("📦 الحجم بعد الضغط: ${await compressedFile.length()} bytes");
+        } else {
+          print("⚠️ فشل الضغط، سيتم استخدام الملف الأصلي.");
+        }
+      }
+
+
       String safeSenderId = Uri.encodeComponent(senderId);
       String safeReceiverId = Uri.encodeComponent(receiverId);
 
@@ -204,7 +213,7 @@ class ChatController extends GetxController {
       print("🚀 بدء الرفع إلى: chats/$safeSenderId/$safeReceiverId/$fileName");
 
       UploadTask uploadTask = storageRef.putFile(
-        safeFile,
+        fileToUpload,
         SettableMetadata(
           contentType: isVideo ? 'video/mp4' : 'image/jpeg',
         ),
@@ -223,7 +232,6 @@ class ChatController extends GetxController {
     }
   }
 
-  // ✅ تحديث حالة الرسائل إلى "تمت مشاهدتها"
   Future<void> markMessagesAsRead(String senderId, String receiverId) async {
     try {
       var messagesRef = _firestore
@@ -239,7 +247,12 @@ class ChatController extends GetxController {
         await doc.reference.update({'isRead': true});
       }
 
-      await _firestore.collection('users').doc(senderId).collection('chats').doc(receiverId).update({
+      await _firestore
+          .collection('users')
+          .doc(senderId)
+          .collection('chats')
+          .doc(receiverId)
+          .update({
         'unreadMessages': 0,
       });
     } catch (e) {
@@ -247,7 +260,6 @@ class ChatController extends GetxController {
     }
   }
 
-  // ✅ Stream لعرض الرسائل بشكل لحظي
   Stream<List<MessageModel>> getMessages(String senderId, String receiverId) {
     return _firestore
         .collection('users')
@@ -261,4 +273,21 @@ class ChatController extends GetxController {
         .map((doc) => MessageModel.fromMap(doc.data()))
         .toList());
   }
+
+
+  Stream<List<MessageModel>> getMediaMessages(String senderId, String receiverId) {
+    return _firestore
+        .collection('users')
+        .doc(senderId)
+        .collection('chats')
+        .doc(receiverId)
+        .collection('messages')
+        .where('contentType', whereIn: ['image', 'video', 'audio']) // فلترة حسب نوع المحتوى
+        .orderBy('timestamp')
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => MessageModel.fromMap(doc.data()))
+        .toList());
+  }
+
 }

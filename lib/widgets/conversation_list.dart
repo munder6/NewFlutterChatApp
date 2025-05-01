@@ -134,8 +134,12 @@ class _ConversationListState extends State<ConversationList> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            _formatTimestamp(conversation.timestamp),
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                            _formatTimestamp(conversation.timestamp, conversation.unreadMessages),
+                            style: TextStyle(
+                              color: conversation.unreadMessages > 0 ? Colors.red : Colors.grey,
+                              fontSize: 12,
+                              fontWeight: conversation.unreadMessages > 0 ? FontWeight.bold : FontWeight.normal,
+                            ),
                           ),
                           SizedBox(height: 5),
                           _buildUnreadMessagesIndicator(conversation.unreadMessages),
@@ -160,14 +164,23 @@ class _ConversationListState extends State<ConversationList> {
     );
   }
 
-  String _formatTimestamp(DateTime timestamp) {
+  String _formatTimestamp(DateTime timestamp, int unreadMessages) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    if (difference.inMinutes < 1) return "Now";
-    if (difference.inHours < 1) return "${difference.inMinutes}m ago";
-    if (difference.inDays < 1) return "${difference.inHours}h ago";
-    if (difference.inDays < 7) return "${difference.inDays}d ago";
-    return "${timestamp.day}/${timestamp.month}/${timestamp.year}";
+    String formattedTime = '';
+    if (difference.inMinutes < 1) {
+      formattedTime = "Now";
+    } else if (difference.inHours < 1) {
+      formattedTime = "${difference.inMinutes}m ago";
+    } else if (difference.inDays < 1) {
+      formattedTime = "${difference.inHours}h ago";
+    } else if (difference.inDays < 7) {
+      formattedTime = "${difference.inDays}d ago";
+    } else {
+      formattedTime = "${timestamp.day}/${timestamp.month}/${timestamp.year}";
+    }
+
+    return formattedTime;
   }
 
   Widget _buildUnreadMessagesIndicator(int unreadMessages) {
