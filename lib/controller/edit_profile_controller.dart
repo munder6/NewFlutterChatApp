@@ -1,15 +1,19 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 class EditProfileController extends GetxController {
   var fullName = ''.obs;
   var username = ''.obs;
   var profileImageUrl = ''.obs;
+  var isUploadingImage = false.obs; // متغير متابعة الرفع
+
   final box = GetStorage();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -18,31 +22,18 @@ class EditProfileController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // جلب البيانات من GetStorage عند فتح الصفحة
     fullName.value = box.read('fullName') ?? '';
     username.value = box.read('username') ?? '';
     profileImageUrl.value = box.read('profileImageUrl') ?? '';
   }
 
-  // دالة للتحقق إذا كان اسم المستخدم موجودًا مسبقًا في Firebase
-  Future<bool> isUsernameTaken(String newUsername) async {
-    var snapshot = await _firestore.collection('users')
-        .where('username', isEqualTo: newUsername)
-        .get();
-
-    return snapshot.docs.isNotEmpty; // إذا كانت النتيجة غير فارغة، فهذا يعني أن اسم المستخدم موجود
-  }
-
-  // دالة لتحديث البيانات
   Future<void> updateFullName(String newFullName) async {
     fullName.value = newFullName;
     box.write('fullName', newFullName);
 
     var userRef = _firestore.collection('users').doc(box.read('user_id'));
 
-    await userRef.update({
-      'fullName': newFullName,
-    });
+    await userRef.update({'fullName': newFullName});
 
     Get.snackbar(
       "Name Updated",
@@ -54,32 +45,28 @@ class EditProfileController extends GetxController {
     );
   }
 
-  // دالة لتحديث اسم المستخدم
   Future<void> updateUsername(String newUsername) async {
-    // تحقق من وجود اسم المستخدم
-    bool usernameExists = await isUsernameTaken(newUsername);
-    if (usernameExists) {
-      // في حالة كان اسم المستخدم موجودًا
+    var snapshot = await _firestore.collection('users')
+        .where('username', isEqualTo: newUsername)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
       Get.snackbar(
         "Username Taken",
         "This username is already taken, please choose another one.",
-        snackPosition: SnackPosition.BOTTOM,  // تحديد مكان السناك بار
+        snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red,
         colorText: Colors.white,
         duration: Duration(seconds: 3),
       );
-      return; // لا نستمر في التحديث إذا كان اسم المستخدم موجود
+      return;
     }
 
-    // إذا لم يكن اسم المستخدم موجودًا
     username.value = newUsername;
     box.write('username', newUsername);
 
     var userRef = _firestore.collection('users').doc(box.read('user_id'));
-
-    await userRef.update({
-      'username': newUsername,
-    });
+    await userRef.update({'username': newUsername});
 
     Get.snackbar(
       "Username Updated",
@@ -91,33 +78,42 @@ class EditProfileController extends GetxController {
     );
   }
 
-  // دالة لاختيار وتحديث الصورة الشخصية
+  // ✅ أهم جزء: تحديث صورة البروفايل مع الضغط والرفع مثل الستوري بالضبط
   Future<void> updateProfileImage() async {
-    // اختيار الصورة من الكاميرا أو الاستوديو
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery); // أو ImageSource.camera
-    if (image == null) return;
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile == null) return;
 
-    File file = File(image.path);
-    String fileName = 'profile_images/${box.read('user_id')}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    isUploadingImage.value = true;
 
     try {
-      // رفع الصورة إلى Firebase Storage
-      UploadTask uploadTask = _storage.ref(fileName).putFile(file);
-      TaskSnapshot snapshot = await uploadTask;
-      String imageUrl = await snapshot.ref.getDownloadURL();
+      print('🔼 رفع صورة البروفايل');
+      print("📁 الصورة الأصلية: ${pickedFile.path}");
+      print("📏 الحجم الأصلي: ${await File(pickedFile.path).length()} bytes");
 
-      // تحديث رابط الصورة في Firebase و GetStorage
-      profileImageUrl.value = imageUrl;
-      box.write('profileImageUrl', imageUrl);
+      // ✅ نضغط الصورة
+      File compressedFile = await _compressFile(File(pickedFile.path));
+      print("📦 الحجم بعد الضغط: ${await compressedFile.length()} bytes");
 
-      // تحديث رابط الصورة في Firebase Firestore
-      var userRef = _firestore.collection('users').doc(box.read('user_id'));
+      String fileName = 'profile_images/${box.read('user_id')}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final ref = _storage.ref().child(fileName);
 
-      await userRef.update({
-        'profileImageUrl': imageUrl,
+      UploadTask uploadTask = ref.putFile(compressedFile);
+
+      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+        final progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        print('📤 رفع قيد التنفيذ: ${progress.toStringAsFixed(2)}%');
       });
+
+      final TaskSnapshot snapshot = await uploadTask;
+      final String downloadUrl = await snapshot.ref.getDownloadURL();
+
+      profileImageUrl.value = downloadUrl;
+      box.write('profileImageUrl', downloadUrl);
+
+      var userRef = _firestore.collection('users').doc(box.read('user_id'));
       await userRef.update({
-        'profileImage': imageUrl,
+        'profileImageUrl': downloadUrl,
+        'profileImage': downloadUrl,
       });
 
       Get.snackbar(
@@ -129,7 +125,7 @@ class EditProfileController extends GetxController {
         duration: Duration(seconds: 3),
       );
     } catch (e) {
-      print("Error updating profile image: $e");
+      print('🔥🔥🔥 ERROR UPDATING PROFILE IMAGE: $e');
       Get.snackbar(
         "Error",
         "There was an error while updating the profile image.",
@@ -138,6 +134,27 @@ class EditProfileController extends GetxController {
         colorText: Colors.white,
         duration: Duration(seconds: 3),
       );
+    } finally {
+      isUploadingImage.value = false;
     }
+  }
+
+  // ✅ كود ضغط الصورة
+  Future<File> _compressFile(File file) async {
+    final dir = await getTemporaryDirectory();
+    final targetPath = '${dir.absolute.path}/${DateTime.now().millisecondsSinceEpoch}_compressed.jpg';
+
+    final compressedBytes = await FlutterImageCompress.compressWithFile(
+      file.absolute.path,
+      quality: 70,
+      format: CompressFormat.jpeg,
+    );
+
+    if (compressedBytes == null) {
+      return file;
+    }
+
+    final compressedFile = File(targetPath)..writeAsBytesSync(compressedBytes);
+    return compressedFile;
   }
 }

@@ -1,1 +1,36 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"messagesapp-98552","appId":"1:17486368079:android:411e033fc845bc8b37893a","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"messagesapp-98552","configurations":{"android":"1:17486368079:android:411e033fc845bc8b37893a","ios":"1:17486368079:ios:3628923bf18dd6f637893a","web":"1:17486368079:web:7aacb1679ad8852b37893a"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "messagesapp-98552",
+          "appId": "1:17486368079:android:411e033fc845bc8b37893a",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "messagesapp-98552",
+          "configurations": {
+            "android": "1:17486368079:android:411e033fc845bc8b37893a",
+            "ios": "1:17486368079:ios:3628923bf18dd6f637893a",
+            "web": "1:17486368079:web:7aacb1679ad8852b37893a"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}

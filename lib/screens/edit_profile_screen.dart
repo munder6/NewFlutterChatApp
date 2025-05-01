@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../controller/edit_profile_controller.dart';
 
 class EditProfileScreen extends StatelessWidget {
@@ -15,17 +16,27 @@ class EditProfileScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: ListView(
           children: [
-            // صورة المستخدم مع إمكانية تغييرها
             GestureDetector(
-              onTap: () => controller.updateProfileImage(), // عند الضغط على الصورة لتغييرها
+              onTap: () => controller.updateProfileImage(),
               child: Obx(() => Stack(
+                alignment: Alignment.center,
                 children: [
                   CircleAvatar(
-                    radius: 70, // تكبير الأفاتار
-                    backgroundImage: NetworkImage(
-                      controller.profileImageUrl.value.isEmpty
-                          ? "https://i.pravatar.cc/150"
-                          : controller.profileImageUrl.value,
+                    radius: 70,
+                    backgroundColor: Colors.grey[200],
+                    child: controller.isUploadingImage.value
+                        ? CircularProgressIndicator()
+                        : ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl: controller.profileImageUrl.value.isEmpty
+                            ? "https://i.pravatar.cc/150"
+                            : controller.profileImageUrl.value,
+                        fit: BoxFit.cover,
+                        width: 140,
+                        height: 140,
+                        placeholder: (context, url) => CircularProgressIndicator(),
+                        errorWidget: (context, url, error) => Icon(Icons.error),
+                      ),
                     ),
                   ),
                   Positioned(
@@ -34,19 +45,13 @@ class EditProfileScreen extends StatelessWidget {
                     child: CircleAvatar(
                       backgroundColor: Colors.blue,
                       radius: 20,
-                      child: Icon(
-                        Icons.edit,
-                        color: Colors.white,
-                        size: 18,
-                      ),
+                      child: Icon(Icons.edit, color: Colors.white, size: 18),
                     ),
                   ),
                 ],
               )),
             ),
             SizedBox(height: 20),
-
-            // تغيير الاسم الكامل
             TextField(
               controller: TextEditingController(text: controller.fullName.value),
               decoration: InputDecoration(
@@ -58,8 +63,6 @@ class EditProfileScreen extends StatelessWidget {
               },
             ),
             SizedBox(height: 20),
-
-            // زر تحديث الاسم الكامل
             ElevatedButton(
               onPressed: () {
                 controller.updateFullName(controller.fullName.value);
@@ -67,8 +70,6 @@ class EditProfileScreen extends StatelessWidget {
               child: Text("Update Full Name"),
             ),
             SizedBox(height: 20),
-
-            // تغيير اسم المستخدم
             TextField(
               controller: TextEditingController(text: controller.username.value),
               decoration: InputDecoration(
@@ -80,8 +81,6 @@ class EditProfileScreen extends StatelessWidget {
               },
             ),
             SizedBox(height: 20),
-
-            // زر تحديث اسم المستخدم
             ElevatedButton(
               onPressed: () {
                 controller.updateUsername(controller.username.value);

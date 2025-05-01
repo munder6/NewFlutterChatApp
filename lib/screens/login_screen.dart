@@ -1,3 +1,4 @@
+import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
@@ -80,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(fontSize: 16, color: AppTheme.getTextColor(isDarkMode).withOpacity(0.6)),
                   ),
                   SizedBox(height: 30),
-                  _buildTextField(emailController, "Email or Phone Number", Icons.email_outlined, isDarkMode),
+                  _buildTextField(emailController, "Email or Phone Number", EvaIcons.emailOutline, isDarkMode),
                   SizedBox(height: 15),
                   _buildPasswordField(isDarkMode),
                   Align(
@@ -175,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
       controller: passwordController,
       obscureText: _obscurePassword,
       decoration: InputDecoration(
-        prefixIcon: Icon(Icons.lock_outline),
+        prefixIcon: Icon(EvaIcons.lockOutline),
         hintText: "Password",
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -184,7 +185,7 @@ class _LoginScreenState extends State<LoginScreen> {
         filled: true,
         fillColor: isDarkMode ? Colors.grey[800] : Colors.grey[100], // لون الخلفية في TextField حسب الوضع
         suffixIcon: IconButton(
-          icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+          icon: Icon(_obscurePassword ? EvaIcons.eyeOff2Outline : EvaIcons.eye),
           onPressed: () {
             setState(() {
               _obscurePassword = !_obscurePassword;

@@ -36,31 +36,31 @@ class _MessageCardState extends State<MessageCard> {
     _audioPlayer = AudioPlayer();
 
     _audioPlayer.playerStateStream.listen((state) {
-      setState(() {
+
         _isPlaying = state.playing;
-      });
+
     });
 
     _audioPlayer.durationStream.listen((d) {
       if (d != null) {
-        setState(() {
+
           _duration = d;
-        });
+
       }
     });
 
     _audioPlayer.positionStream.listen((p) {
-      setState(() {
+
         _position = p;
-      });
+
     });
 
     _audioPlayer.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) {
-        setState(() {
+
           _isPlaying = false;
           _position = Duration.zero;
-        });
+
       }
     });
   }
@@ -89,8 +89,6 @@ class _MessageCardState extends State<MessageCard> {
     bool isLastInGroup = widget.nextMessage == null ||
         widget.nextMessage!.senderId != widget.message.senderId ||
         _hasTimeGap(widget.message.timestamp, widget.nextMessage!.timestamp);
-
-
 
     BorderRadiusGeometry borderRadius;
     if (isFirstInGroup && isLastInGroup) {
@@ -132,95 +130,128 @@ class _MessageCardState extends State<MessageCard> {
         ? Colors.white
         : Colors.black);
 
-    bool isNewGroup = false;
-
     final box = GetStorage();
     final String currentUserId = box.read('user_id') ?? '';
-
-    if (widget.previousMessage != null) {
-      final bool isCurrentFromUser = widget.message.senderId == currentUserId;
-      final bool isPreviousFromUser = widget.previousMessage!.senderId == currentUserId;
-
-      if (isCurrentFromUser != isPreviousFromUser) {
-        isNewGroup = true;
-      }
-    }
 
     return Padding(
       padding: EdgeInsets.only(top: 0.8, left: 15, right: 15),
       child: Align(
         alignment: widget.isSender ? Alignment.centerRight : Alignment.centerLeft,
-        child: widget.message.contentType == "image"
-            ? ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Image.network(
-            widget.message.content,
-            width: 200,
-            height: 200,
-            fit: BoxFit.cover,
-          ),
-        )
-            : widget.message.contentType == "audio"
-            ? Container(
-          decoration: BoxDecoration(
-            color: messageColor,
-            borderRadius: borderRadius,
-          ),
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-          constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.6),
-          child: Row(
-            children: [
-              IconButton(
-                icon: Icon(
-                  _isPlaying ? Icons.pause : Icons.play_arrow,
-                  color: widget.isSender ? Colors.white : Colors.black,
+        child: Column(
+          crossAxisAlignment: widget.isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            if (widget.message.replyToStoryUrl != null)
+              Container(
+                margin: EdgeInsets.only(bottom: 5),
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[850]
+                      : Colors.grey[200],
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                onPressed: () async {
-                  if (_isPlaying) {
-                    await _audioPlayer.pause();
-                  } else {
-                    await _playAudio();
-                  }
-                },
-              ),
-              SizedBox(
-                width: 130,
-                child: Slider(
-                  value: _duration.inMilliseconds == 0
-                      ? 0
-                      : (_position.inMilliseconds /
-                      _duration.inMilliseconds)
-                      .clamp(0.0, 1.0),
-                  min: 0.0,
-                  max: 1.0,
-                  onChanged: (value) {
-                    final newPos = _duration * value;
-                    _audioPlayer.seek(newPos);
-                  },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      margin: EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        image: DecorationImage(
+                          image: NetworkImage(widget.message.replyToStoryUrl!),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      "رد على ستوري",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white70
+                            : Colors.black54,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                "${_position.inMinutes}:${_position.inSeconds.remainder(60).toString().padLeft(2, '0')}",
-                style: TextStyle(
-                  color: widget.isSender ? Colors.white : Colors.black,
-                ),
+
+            // ✅ الرسالة الأساسية
+            widget.message.contentType == "image"
+                ? ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                widget.message.content,
+                width: 200,
+                height: 200,
+                fit: BoxFit.cover,
               ),
-            ],
-          ),
-        )
-            : Container(
-          decoration: BoxDecoration(
-            color: messageColor,
-            borderRadius: borderRadius,
-          ),
-          padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-          constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.6),
-          child: Text(
-            widget.message.content,
-            style: TextStyle(color: textColor),
-          ),
+            )
+                : widget.message.contentType == "audio"
+                ? Container(
+              decoration: BoxDecoration(
+                color: messageColor,
+                borderRadius: borderRadius,
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.6),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      _isPlaying ? Icons.pause : Icons.play_arrow,
+                      color: widget.isSender ? Colors.white : Colors.black,
+                    ),
+                    onPressed: () async {
+                      if (_isPlaying) {
+                        await _audioPlayer.pause();
+                      } else {
+                        await _playAudio();
+                      }
+                    },
+                  ),
+                  SizedBox(
+                    width: 130,
+                    child: Slider(
+                      value: _duration.inMilliseconds == 0
+                          ? 0
+                          : (_position.inMilliseconds / _duration.inMilliseconds)
+                          .clamp(0.0, 1.0),
+                      min: 0.0,
+                      max: 1.0,
+                      onChanged: (value) {
+                        final newPos = _duration * value;
+                        _audioPlayer.seek(newPos);
+                      },
+                    ),
+                  ),
+                  Text(
+                    "${_position.inMinutes}:${_position.inSeconds.remainder(60).toString().padLeft(2, '0')}",
+                    style: TextStyle(
+                      color: widget.isSender ? Colors.white : Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+            )
+                : Container(
+              decoration: BoxDecoration(
+                color: messageColor,
+                borderRadius: borderRadius,
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+              constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.6),
+              child: Text(
+                widget.message.content,
+                style: TextStyle(color: textColor),
+              ),
+            ),
+          ],
         ),
       ),
     );

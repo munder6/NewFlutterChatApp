@@ -1,3 +1,4 @@
+// 🔥 AUTH CONTROLLER كامل بعد التعديل 🔥
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -6,7 +7,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-class AuthController extends GetxController with WidgetsBindingObserver {  // إضافة المراقب
+class AuthController extends GetxController with WidgetsBindingObserver {
   static AuthController instance = Get.find();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -17,7 +18,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {  // إ
   @override
   void onReady() {
     super.onReady();
-    WidgetsBinding.instance.addObserver(this); // إضافة المراقب
+    WidgetsBinding.instance.addObserver(this);
     firebaseUser.bindStream(_auth.authStateChanges());
     _checkLoginStatus();
   }
@@ -25,7 +26,7 @@ class AuthController extends GetxController with WidgetsBindingObserver {  // إ
   @override
   void onClose() {
     super.onClose();
-    WidgetsBinding.instance.removeObserver(this); // إزالة المراقب عند الإغلاق
+    WidgetsBinding.instance.removeObserver(this);
   }
 
   void _checkLoginStatus() {
@@ -42,16 +43,13 @@ class AuthController extends GetxController with WidgetsBindingObserver {  // إ
     String? userId = box.read('user_id');
     if (userId != null) {
       if (state == AppLifecycleState.resumed) {
-        // عندما يعود التطبيق إلى الواجهة الأمامية
-        _updateOnlineStatus(true); // تعيين isOnline إلى true
+        _updateOnlineStatus(true);
       } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
-        // عندما يذهب التطبيق إلى الخلفية أو يتم سحبه من شاشة التطبيقات
-        _updateOnlineStatus(false); // تعيين isOnline إلى false
+        _updateOnlineStatus(false);
       }
     }
   }
 
-  // تحديث حالة الـ isOnline
   Future<void> _updateOnlineStatus(bool isOnline) async {
     String uid = box.read('user_id') ?? '';
     if (uid.isNotEmpty) {
@@ -61,50 +59,47 @@ class AuthController extends GetxController with WidgetsBindingObserver {  // إ
     }
   }
 
-  // 🔹 تسجيل الدخول باستخدام البريد الإلكتروني أو اسم المستخدم
+  // 🔥 تسجيل الدخول بواسطة ايميل أو يوزرنيم 🔥
   Future<void> signInWithEmailOrUsername(String emailOrUsername, String password) async {
     try {
-      // إذا كان المدخل هو بريد إلكتروني، نستخدمه مباشرة
-      if (emailOrUsername.contains("@")) {
-        // ✅ تسجيل الدخول باستخدام البريد الإلكتروني مباشرةً
-        UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-          email: emailOrUsername,
-          password: password,
-        );
+      String email = emailOrUsername;
 
-        if (userCredential.user != null) {
-          _setUserLoggedIn();
-          _updateOnlineStatus(true);  // تعيين `isOnline` إلى true عند تسجيل الدخول
-          Get.offAllNamed('/main');
-        }
-      } else {
-        // ✅ البحث عن المستخدم عبر اسم المستخدم
-        var userQuery = await _firestore.collection('users').where('username', isEqualTo: emailOrUsername).get();
+      if (!emailOrUsername.contains("@")) {
+        // المستخدم أدخل username → بنبحث عن الايميل المرتبط
+        var userQuery = await _firestore.collection('users')
+            .where('username', isEqualTo: emailOrUsername)
+            .limit(1)
+            .get();
 
         if (userQuery.docs.isEmpty) {
           Get.snackbar("خطأ", "اسم المستخدم غير مسجل!");
           return;
         }
 
-        // إذا تم العثور على المستخدم، نقوم بإعادة كلمة المرور الخاصة به
-        var userDoc = userQuery.docs.first;
-        String email = userDoc['email'];
+        email = userQuery.docs.first['email'];
+      }
 
-        // تسجيل الدخول باستخدام البريد الإلكتروني
-        await signInWithEmailOrUsername(email, password);
+      // تسجيل الدخول بالبريد وكلمة السر
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (userCredential.user != null) {
+        await _setUserLoggedIn();
+        await _updateOnlineStatus(true);
+        Get.offAllNamed('/main');
       }
     } catch (e) {
       Get.snackbar("خطأ", "فشل تسجيل الدخول: ${e.toString()}");
     }
   }
 
-  // 🔹 تسجيل الدخول باستخدام Google (يُسمح فقط لمن لديهم حساب مسجل مسبقًا)
   Future<void> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) return;
 
-      // ✅ التحقق مما إذا كان المستخدم لديه حساب مسجل مسبقًا
       bool userExists = await _checkIfUserExists(googleUser.email);
       if (!userExists) {
         Get.snackbar("خطأ", "يجب عليك إنشاء حساب أولًا قبل تسجيل الدخول عبر جوجل");
@@ -112,31 +107,33 @@ class AuthController extends GetxController with WidgetsBindingObserver {  // إ
       }
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      GoogleAuthProvider.credential(
+
+      // ✅ هذا هو السطر المهم الذي كنت ناسيه
+      final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      _setUserLoggedIn();
-      _updateOnlineStatus(true);  // تعيين `isOnline` إلى true عند تسجيل الدخول
+      // ✅ تسجيل الدخول باستخدام الـ credential
+      await _auth.signInWithCredential(credential);
+
+      await _setUserLoggedIn();
+      await _updateOnlineStatus(true);
       Get.offAllNamed('/main');
     } catch (e) {
+      print("Google Sign-In error: $e");
       Get.snackbar("خطأ", "فشل تسجيل الدخول عبر جوجل");
     }
   }
 
-  // 🔹 التحقق من إذا كان المستخدم لديه حساب مسجل مسبقًا
   Future<bool> _checkIfUserExists(String? email) async {
     if (email == null) return false;
     var userDoc = await _firestore.collection('users').where('email', isEqualTo: email).get();
     return userDoc.docs.isNotEmpty;
   }
 
-  // 🔹 تسجيل الخروج
   Future<void> signOut() async {
     String? uid = box.read('user_id');
-
-    // ✅ نحدث الريال تايم قبل تسجيل الخروج
     if (uid != null) {
       DatabaseReference ref = FirebaseDatabase.instance.ref("status/$uid");
       await ref.set({
@@ -145,34 +142,30 @@ class AuthController extends GetxController with WidgetsBindingObserver {  // إ
       });
     }
 
-    // باقي كود sign out
-    await FirebaseAuth.instance.signOut();
+    await _auth.signOut();
     box.erase();
     Get.offAllNamed('/onboarding');
   }
 
-  // 🔹 تخزين بيانات المستخدم في GetStorage
+  // ✅ تخزين معلومات اليوزر عند تسجيل الدخول
   Future<void> _setUserLoggedIn() async {
     if (_auth.currentUser != null) {
       String uid = _auth.currentUser!.uid;
-
       DocumentSnapshot userDoc = await _firestore.collection("users").doc(uid).get();
 
       if (userDoc.exists) {
         var userData = userDoc.data() as Map<String, dynamic>;
 
-        // ✅ تخزين بيانات المستخدم في التخزين المحلي
         box.write('user_id', uid);
         box.write('fullName', userData['fullName']);
         box.write('username', userData['username']);
         box.write('email', userData['email']);
         box.write('is_logged_in', true);
+
         String? profileImageUrl = userData['profileImageUrl'];
         if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
-          // إذا كانت موجودة، نضع الرابط
           box.write('profileImageUrl', profileImageUrl);
         } else {
-          // إذا لم تكن موجودة، نضع رابط مؤقت
           box.write('profileImageUrl', 'https://i.pravatar.cc/150');
         }
       }

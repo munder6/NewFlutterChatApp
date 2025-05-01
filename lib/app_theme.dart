@@ -6,13 +6,13 @@ class AppTheme {
     hintColor: Colors.blueAccent,
     scaffoldBackgroundColor: Colors.white,
     textTheme: TextTheme(
-      bodyMedium: TextStyle(color: Colors.black), // Text color for Light Mode
+      bodyMedium: TextStyle(color: Colors.black, fontFamily: 'SFProDisplay'), // Text color for Light Mode
     ),
     buttonTheme: ButtonThemeData(buttonColor: Colors.blue),
     appBarTheme: AppBarTheme(
       backgroundColor: Colors.white,
       iconTheme: IconThemeData(color: Colors.black),
-      titleTextStyle: TextStyle(color: Colors.black, fontSize: 20),
+      titleTextStyle: TextStyle(color: Colors.black, fontSize: 20, fontFamily: 'SFProDisplay'),
     ),
   );
 
@@ -21,7 +21,7 @@ class AppTheme {
     hintColor: Colors.blueAccent,
     scaffoldBackgroundColor: Colors.black,
     textTheme: TextTheme(
-      bodyMedium: TextStyle(color: Colors.white), // Text color for Dark Mode
+      bodyMedium: TextStyle(color: Colors.white, fontFamily: 'SFProDisplay'), // Text color for Dark Mode
     ),
     buttonTheme: ButtonThemeData(buttonColor: Colors.black),
     appBarTheme: AppBarTheme(

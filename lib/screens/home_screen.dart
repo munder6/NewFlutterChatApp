@@ -1,11 +1,16 @@
+import 'dart:ui';
+import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:ionicons/ionicons.dart';
 import 'package:lottie/lottie.dart';
 import '../app_theme.dart';
 import '../controller/homescreeen_controller.dart';
+import '../controller/new_chat_controller.dart';
 import '../widgets/conversation_list.dart';
 import '../widgets/search_box.dart';
+import '../widgets/user_list.dart';
 import 'new_chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -15,31 +20,24 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final HomeController homeController = Get.put(HomeController());
-  final TextEditingController searchControllerText = TextEditingController();
-
-  String searchQuery = "";
   String? userId;
   bool isLoading = true;
-
-  static bool _alreadyLoaded = false; // ✅ متغير يتحكم إذا الصفحة اشتغلت أول مرة
 
   @override
   void initState() {
     super.initState();
-
-    if (_alreadyLoaded) {
-      // ✅ لو الصفحة اشتغلت مرة قبل هيك، ما بنعيد تحميل
+    if (GetStorage().read('isUserLoaded') == true) {
       userId = GetStorage().read('user_id');
       isLoading = false;
     } else {
-      _loadUserId(); // أول مرة بس
+      _loadUserId();
     }
   }
 
   Future<void> _loadUserId() async {
-    await Future.delayed(Duration(milliseconds: 500)); // يعطي شعور التحميل
+    await Future.delayed(Duration(milliseconds: 500));
     userId = GetStorage().read('user_id');
-    _alreadyLoaded = true;
+    GetStorage().write('isUserLoaded', true);
     setState(() {
       isLoading = false;
     });
@@ -74,78 +72,143 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       backgroundColor: AppTheme.backgroundColor(isDarkMode),
-      body: Column(
-        children: [
-          // 🔹 AppBar مخصص
-          Container(
-            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
-            decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey.shade900 : Colors.white12,
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-            ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.edit, color: Colors.blueAccent),
-                        onPressed: () {
-                          Get.to(() => NewChatScreen());
-                        },
-                      ),
-                      Text(
-                        "Chats",
-                        style: TextStyle(
-                          color: isDarkMode ? Colors.white : Colors.black,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.settings, color: Colors.blueAccent),
-                        onPressed: () {
-                          Get.toNamed('/settings');
-                        },
-                      ),
-                    ],
-                  ),
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(56),
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+            child: AppBar(
+              elevation: 0,
+              backgroundColor: isDarkMode
+                  ? Colors.black.withOpacity(0.3)
+                  : Colors.white.withOpacity(0.3),
+              automaticallyImplyLeading: false,
+              centerTitle: false,
+              titleSpacing: 18,
+              title: Text(
+                "messenger",
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white : Colors.blue[700],
+                  fontSize: 35,
+                  fontWeight: FontWeight.bold,
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 10.0),
-                  child: SearchBox(
-                    searchControllerText: searchControllerText,
-                    onChanged: (value) {
-                      setState(() {
-                        searchQuery = value;
-                      });
-                    },
+              ),
+              actions: [
+                IconButton(
+                  icon: Icon(
+                    Ionicons.create_outline,
+                    color: isDarkMode ? Colors.white : Colors.blue[700],
+                    size: 26,
                   ),
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => _buildBlurredBottomSheet(context, isDarkMode),
+                    );
+                  },
                 ),
               ],
             ),
           ),
-
-          // 🔹 Conversation List
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.backgroundColor(isDarkMode),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: ConversationList(
-                homeController: homeController,
-                userId: userId!,
-
-                searchQuery: searchQuery,
-              ),
-            ),
-          ),
-        ],
+        ),
+      ),
+      body: Container(
+        margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 56),
+        decoration: BoxDecoration(
+          color: AppTheme.backgroundColor(isDarkMode),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: ConversationList(
+          homeController: homeController,
+          userId: userId!,
+        ),
       ),
     );
   }
 }
+
+Widget _buildBlurredBottomSheet(BuildContext context, bool isDarkMode) {
+  final screenHeight = MediaQuery.of(context).size.height;
+  final NewChatController newChatController = Get.put(NewChatController());
+  final TextEditingController searchControllerText = TextEditingController();
+  final RxString searchQuery = ''.obs;
+
+  return ClipRRect(
+    borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+      child: Container(
+        height: screenHeight * 0.89,
+        decoration: BoxDecoration(
+          color: isDarkMode
+              ? Colors.grey.shade800.withOpacity(0.4)
+              : Colors.white.withOpacity(0.65),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18.0),
+              child: Center(
+                child: Text(
+                  "Start New Chat",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              child: SearchBox(
+                searchControllerText: searchControllerText,
+                onChanged: (value) {
+                  searchQuery.value = value.trim();
+                  newChatController.searchUsers(searchQuery.value);
+                },
+              ),
+            ),
+            SizedBox(height: 10),
+            Expanded(
+              child: Obx(() {
+                return searchQuery.value.isEmpty
+                    ? Center(
+                  child: Text(
+                    "Start typing to search users...",
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black,
+                      fontSize: 14,
+                    ),
+                  ),
+                )
+                    : UserList(newChatController: newChatController);
+              }),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+

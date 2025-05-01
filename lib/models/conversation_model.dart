@@ -7,14 +7,17 @@ class ConversationModel {
   final String lastMessage;
   final DateTime timestamp;
   final int unreadMessages;
+  final String receiverImage;
 
-  ConversationModel({
+  ConversationModel(
+     {
     required this.id,
     required this.receiverName,
     required this.receiverUsername,
     required this.lastMessage,
     required this.timestamp,
     required this.unreadMessages,
+    required this.receiverImage
   });
 
   factory ConversationModel.fromMap(Map<String, dynamic> map) {
@@ -24,6 +27,7 @@ class ConversationModel {
       receiverUsername: map['receiverUsername'] ?? '',
       lastMessage: map['lastMessage'] ?? '',
       timestamp: (map['timestamp'] as Timestamp).toDate(),
+      receiverImage: map['receiverImage'] ?? '', // ✅ جديد
       unreadMessages: map.containsKey('unreadMessages') ? map['unreadMessages'] : 0, // ✅ تأمين القيمة
     );
   }

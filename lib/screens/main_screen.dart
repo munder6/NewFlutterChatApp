@@ -1,10 +1,13 @@
+import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:ionicons/ionicons.dart';
 import 'package:lottie/lottie.dart';
+import 'package:meassagesapp/screens/home_screen.dart';
+import 'package:meassagesapp/screens/new_chat_screen.dart';
+import 'package:meassagesapp/screens/settings_screen.dart';
 import '../app_theme.dart';
-import 'home_screen.dart';
-import 'new_chat_screen.dart';
-import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
   @override
@@ -16,23 +19,35 @@ class _MainScreenState extends State<MainScreen> {
   String? userId;
   bool isLoading = true;
 
-  final List<Widget> _screens = [
-    HomeScreen(),
-    NewChatScreen(),
-    SettingsScreen(),
-
-    // ممكن تضيف Tab ثالث: ContactsScreen() مثلاً
-  ];
+  late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
-    _loadUserId();
+    userId = GetStorage().read('user_id');
+
+    if (userId != null) {
+      _screens = [
+        HomeScreen(),
+        NewChatScreen(),
+        SettingsScreen(),
+      ];
+      isLoading = false;
+    } else {
+      _loadUserId();
+    }
   }
 
   Future<void> _loadUserId() async {
     await Future.delayed(Duration(milliseconds: 500));
     userId = GetStorage().read('user_id');
+
+    _screens = [
+      HomeScreen(),
+      NewChatScreen(),
+      SettingsScreen(),
+    ];
+
     setState(() {
       isLoading = false;
     });
@@ -68,34 +83,33 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor(isDarkMode),
-      body: _screens[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
-        selectedItemColor: Colors.blueAccent,
-        unselectedItemColor: Colors.grey,
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
-            label: 'Chats',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.edit),
-            label: 'New Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-
-
-          // جاهز تضيف تاب ثالث لو بدك
-        ],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: Container(
+        height: 92,
+        child: BottomNavigationBar(
+          backgroundColor: isDarkMode ? Colors.grey[900] : Colors.grey[100],
+          selectedItemColor: Colors.blue[800],
+          unselectedItemColor: Colors.grey,
+          currentIndex: _selectedIndex,
+          onTap: (index) => setState(() => _selectedIndex = index),
+          items: [
+            BottomNavigationBarItem(
+              icon: SvgPicture.asset('assets/icons/convs.svg', color: Colors.blue[800],),
+              label: 'Chats',
+            ),
+            const BottomNavigationBarItem(
+              icon: Icon(EvaIcons.editOutline),
+              label: 'New Chat',
+            ),
+             BottomNavigationBarItem(
+              icon: SvgPicture.asset('assets/icons/settings.svg', color: Colors.blue[800],width: 25,),
+              label: 'Settings',
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -24,10 +24,15 @@ class SearchResults extends StatelessWidget {
             subtitle: Text(conversation.receiverUsername),
             onTap: () {
               // عند الضغط على اسم المحادثة، ننتقل إلى شاشة المحادثة الخاصة به
+              String profileImageUrl = conversation.receiverImage.isNotEmpty
+                  ? conversation.receiverImage
+                  : 'https://i.pravatar.cc/150';
+
               Get.to(() => ChatScreen(
                 receiverId: conversation.id,
                 receiverName: conversation.receiverName,
                 receiverUsername: conversation.receiverUsername,
+                receiverImage: profileImageUrl,
               ));
             },
           );

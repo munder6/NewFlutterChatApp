@@ -18,20 +18,19 @@ class _NewChatScreenState extends State<NewChatScreen> {
   @override
   Widget build(BuildContext context) {
     bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    Color bgColor = isDarkMode ? Colors.black : Colors.grey[200]!;
-
+    Color bgColor = isDarkMode ? Colors.grey.shade900 : Colors.white;
     return Scaffold(
       backgroundColor: bgColor,
       body: Column(
         children: [
           // 🔹 عنوان الصفحة فقط بدون AppBar
           Padding(
-            padding: const EdgeInsets.only(top: 40.0, bottom: 10.0),
+            padding: const EdgeInsets.only(bottom: 10.0),
             child: Text(
               "Start New Chat",
               style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                fontWeight: FontWeight.normal,
                 color: AppTheme.getTextColor(isDarkMode),
               ),
             ),
@@ -39,7 +38,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
 
           // 🔹 Search Box
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 5.0),
+            padding: const EdgeInsets.symmetric(horizontal: 5.0, vertical: 2.0),
             child: SearchBox(
               searchControllerText: searchControllerText,
               onChanged: (value) {

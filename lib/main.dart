@@ -6,6 +6,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:meassagesapp/app_theme.dart';
 import 'package:meassagesapp/routers.dart';
 import 'controller/auth_controller.dart';
+import 'controller/chat_controller.dart';
 import 'controller/user_controller.dart';
 import 'firebase_options.dart';
 
@@ -17,6 +18,7 @@ void main() async {
   await GetStorage.init();
   Get.put(AuthController()); // تسجيل الكونترولر في GetX
   Get.put(UserController()); // 👈 أضف هذا السطر
+  Get.put(ChatController()); // ✅ هنا
   runApp(MyApp());
 }
 
@@ -75,6 +77,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Flutter Demo',
       theme: AppTheme.lightTheme, // Light Theme
       darkTheme: AppTheme.darkTheme, // Dark Theme

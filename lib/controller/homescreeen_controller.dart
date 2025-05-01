@@ -24,6 +24,29 @@ class HomeController extends GetxController {
     }).toList());
   }
 
+  // ✅ جلب جميع المستخدمين اللي عندهم محادثات مع المستخدم الحالي
+  Stream<List<UserModel>> getUsersWithChats(String currentUserId) {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUserId)
+        .collection('chats')
+        .snapshots()
+        .asyncMap((snapshot) async {
+      List<UserModel> users = [];
+
+      for (var doc in snapshot.docs) {
+        String otherUserId = doc.id;
+        try {
+          var user = await getUserById(otherUserId);
+          users.add(user);
+        } catch (_) {}
+      }
+
+      return users;
+    });
+  }
+
+
   // دالة جلب بيانات المستخدم (الصورة الشخصية) بناءً على ID المستخدم
   Future<UserModel> getUserById(String userId) async {
     var userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();

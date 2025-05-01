@@ -11,6 +11,10 @@ class MessageModel {
   final String receiverName;
   final String receiverUsername;
 
+  // ✅ الحقول الجديدة الخاصة بالرد على الستوري
+  final String? replyToStoryUrl;
+  final String? replyToStoryType;
+  final String? replyToStoryId;
 
   MessageModel({
     required this.id,
@@ -22,6 +26,9 @@ class MessageModel {
     required this.timestamp,
     required this.receiverName,
     required this.receiverUsername,
+    this.replyToStoryUrl,
+    this.replyToStoryType,
+    this.replyToStoryId,
   });
 
   factory MessageModel.fromMap(Map<String, dynamic> map) {
@@ -35,6 +42,9 @@ class MessageModel {
       timestamp: map['timestamp'],
       receiverName: map['receiverName'],
       receiverUsername: map['receiverUsername'],
+      replyToStoryUrl: map['replyToStoryUrl'],
+      replyToStoryType: map['replyToStoryType'],
+      replyToStoryId: map['replyToStoryId'],
     );
   }
 
@@ -49,6 +59,10 @@ class MessageModel {
       'timestamp': timestamp,
       'receiverName': receiverName,
       'receiverUsername': receiverUsername,
+      // ✅ حقل الرد على ستوري
+      'replyToStoryUrl': replyToStoryUrl,
+      'replyToStoryType': replyToStoryType,
+      'replyToStoryId': replyToStoryId,
     };
   }
 }

@@ -40,4 +40,5 @@ class UserModel {
       createdAt: (map['createdAt'] as Timestamp).toDate(),
       isTyping: map['isTyping'] ?? false,
     );
-  }}
+  }
+}

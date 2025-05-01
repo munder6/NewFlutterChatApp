@@ -20,15 +20,25 @@ class ChatController extends GetxController {
 
   // ✅ إرسال رسالة نصية أو وسائط
   Future<void> sendMessage(
-      String senderId, String receiverId, String content, String contentType) async {
+      String senderId,
+      String receiverId,
+      String content,
+      String contentType, {
+        String? replyToStoryUrl,
+        String? replyToStoryType,
+        String? replyToStoryId,
+      }) async {
     try {
       String senderName = box.read('fullName') ?? 'Unknown Sender';
       String senderUsername = box.read('username') ?? 'UnknownUsername';
+      String senderImage = box.read('profileImageUrl') ?? '';
 
-      String? receiverName = box.read('receiverName_\$receiverId');
-      String? receiverUsername = box.read('receiverUsername_\$receiverId');
+      String? receiverName = box.read('receiverName_$receiverId');
+      String? receiverUsername = box.read('receiverUsername_$receiverId');
+      String? receiverImage = box.read('receiverImage_$receiverId');
 
-      if (receiverName == null || receiverUsername == null) {
+      // 🔍 تحميل بيانات المستقبل إذا مش محفوظة
+      if (receiverName == null || receiverUsername == null || receiverImage == null) {
         DocumentSnapshot receiverDoc =
         await _firestore.collection('users').doc(receiverId).get();
         if (receiverDoc.exists) {
@@ -37,12 +47,15 @@ class ChatController extends GetxController {
 
           receiverName = receiverData?['fullName'] ?? 'Unknown Receiver';
           receiverUsername = receiverData?['username'] ?? 'UnknownUsername';
+          receiverImage = receiverData?['profileImageUrl'] ?? '';
 
-          box.write('receiverName_\$receiverId', receiverName);
-          box.write('receiverUsername_\$receiverId', receiverUsername);
+          box.write('receiverName_$receiverId', receiverName);
+          box.write('receiverUsername_$receiverId', receiverUsername);
+          box.write('receiverImage_$receiverId', receiverImage);
         }
       }
 
+      // 📨 إنشاء الرسالة
       String messageId = _firestore.collection('messages').doc().id;
       MessageModel message = MessageModel(
         id: messageId,
@@ -54,8 +67,12 @@ class ChatController extends GetxController {
         timestamp: Timestamp.now(),
         receiverName: receiverName ?? 'Unknown Receiver',
         receiverUsername: receiverUsername ?? 'UnknownUsername',
+        replyToStoryUrl: replyToStoryUrl,
+        replyToStoryType: replyToStoryType,
+        replyToStoryId: replyToStoryId,
       );
 
+      // ✅ أضف الرسالة إلى كلا الطرفين
       await _firestore
           .collection('users')
           .doc(senderId)
@@ -72,11 +89,13 @@ class ChatController extends GetxController {
           .collection('messages')
           .add(message.toMap());
 
+      // ✅ تحديث محادثة المستقبل (مع صورة المرسل)
       DocumentReference receiverChatRef = _firestore
           .collection('users')
           .doc(receiverId)
           .collection('chats')
           .doc(senderId);
+
       await _firestore.runTransaction((transaction) async {
         DocumentSnapshot receiverChatSnapshot =
         await transaction.get(receiverChatRef);
@@ -89,10 +108,12 @@ class ChatController extends GetxController {
           'timestamp': Timestamp.now(),
           'receiverName': senderName,
           'receiverUsername': senderUsername,
+          'receiverImage': senderImage,
           'unreadMessages': currentUnreadMessages + 1,
         }, SetOptions(merge: true));
       });
 
+      // ✅ تحديث محادثة المرسل (مع صورة المستقبل)
       DocumentReference senderChatRef = _firestore
           .collection('users')
           .doc(senderId)
@@ -104,13 +125,14 @@ class ChatController extends GetxController {
         'timestamp': Timestamp.now(),
         'receiverName': receiverName,
         'receiverUsername': receiverUsername,
+        'receiverImage': receiverImage,
         'unreadMessages': 0,
       }, SetOptions(merge: true));
-
     } catch (e) {
-      print("Error sending message: \$e");
+      print("❌ Error sending message: $e");
     }
   }
+
 
   // ✅ اختيار صورة أو فيديو وإرسالها
   Future<void> pickMedia(
