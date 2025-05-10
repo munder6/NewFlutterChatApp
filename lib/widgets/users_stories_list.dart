@@ -88,11 +88,13 @@ class HorizontalUserStoryList extends StatelessWidget {
                                     isOwner: false,
                                   ));
                                 } else {
-                                  Get.to(() => ChatScreen(
+                                  Get.to(() =>  ChatScreen(
                                     receiverId: user.id,
                                     receiverName: user.fullName,
                                     receiverUsername: user.username,
                                     receiverImage: profileImageUrl,
+                                    bio: user.bio,
+                                    birthdate: user.birthDate.toString(),
                                   ));
                                 }
                               }

@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,9 +12,13 @@ class SignupController extends GetxController {
   final GetStorage box = GetStorage();
   var isLoading = false.obs;
 
-  // 🔹 تسجيل مستخدم جديد بالبريد الإلكتروني
   Future<void> signUpWithEmail(
-      String email, String fullName, String username, String password, String confirmPassword) async {
+      String email,
+      String fullName,
+      String username,
+      String password,
+      String confirmPassword,
+      ) async {
     if (password != confirmPassword) {
       Get.snackbar("خطأ", "كلمات المرور غير متطابقة");
       return;
@@ -22,19 +28,18 @@ class SignupController extends GetxController {
       isLoading.value = true;
       if (await isUserDataTaken(email, username)) return;
 
-      UserCredential userCredential =
-      await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-      // ✅ استخدام الرابط الثابت للصورة الشخصية
-      String avatarUrl = "https://k.top4top.io/p_3330owv2f1.png"; // الرابط الافتراضي
-
-      // ✅ حفظ بيانات المستخدم بعد التسجيل
+      String avatarUrl = "https://k.top4top.io/p_3330owv2f1.png";
       await _saveUserData(userCredential.user!, fullName, username, email, avatarUrl);
 
-      // 🔹 إرسال تأكيد البريد الإلكتروني
       await userCredential.user!.sendEmailVerification();
 
-      // 🔹 توجيه المستخدم لصفحة تأكيد البريد
+      // ❌ لا تكتب أي شيء في GetStorage هنا
+      // ✅ فقط وجه المستخدم إلى صفحة التحقق
       Get.offAllNamed('/verify-email');
     } catch (e) {
       Get.snackbar("خطأ", "فشل إنشاء الحساب: ${e.toString()}");
@@ -43,7 +48,6 @@ class SignupController extends GetxController {
     }
   }
 
-  // 🔹 تسجيل حساب جديد عبر Google
   Future<void> signUpWithGoogle() async {
     try {
       isLoading.value = true;
@@ -63,10 +67,19 @@ class SignupController extends GetxController {
 
       if (await isUserDataTaken(email, username)) return;
 
-      // ✅ استخدام الرابط الثابت للصورة الشخصية
-      String avatarUrl = "https://k.top4top.io/p_3330owv2f1.png"; // الرابط الافتراضي
+      String avatarUrl = "https://k.top4top.io/p_3330owv2f1.png";
 
       await _saveUserData(userCredential.user!, displayName, username, email, avatarUrl);
+
+      // ✅ حفظ مباشر لأنه موثوق من Google
+      box.write('user_id', userCredential.user!.uid);
+      box.write('fullName', displayName);
+      box.write('username', username);
+      box.write('email', email);
+      box.write('profileImage', avatarUrl);
+      box.write('bio', "");
+      box.write('birthDate', null);
+      box.write('is_logged_in', true);
 
       Get.offAllNamed('/main');
     } catch (e) {
@@ -76,7 +89,6 @@ class SignupController extends GetxController {
     }
   }
 
-  // 🔹 التحقق من تكرار البيانات
   Future<bool> isUserDataTaken(String email, String username) async {
     var users = _firestore.collection('users');
 
@@ -95,9 +107,22 @@ class SignupController extends GetxController {
     return false;
   }
 
-  // 🔹 حفظ بيانات المستخدم في Firestore
-  Future<void> _saveUserData(User user, String fullName, String username, String email, String avatarUrl) async {
+  Future<void> _saveUserData(
+      User user,
+      String fullName,
+      String username,
+      String email,
+      String avatarUrl,
+      ) async {
     String uid = user.uid;
+
+    String? fcmToken;
+    if (Platform.isAndroid) {
+      fcmToken = await FirebaseMessaging.instance.getToken();
+    }
+
+    List<String> fcmTokens = [];
+    if (fcmToken != null) fcmTokens.add(fcmToken);
 
     await _firestore.collection("users").doc(uid).set({
       "uid": uid,
@@ -106,18 +131,15 @@ class SignupController extends GetxController {
       "email": email,
       "createdAt": DateTime.now(),
       "profileImage": avatarUrl,
-      "isOnline": true, // ✅ المستخدم دخل التطبيق الآن
+      "isOnline": true,
       "lastSeen": FieldValue.serverTimestamp(),
       "showOnlineStatus": true,
-      "isTyping": false, // ✅ مبدئياً مش بيكتب
+      "isTyping": false,
+      "fcmTokens": fcmTokens,
+      "bio": "",
+      "birthDate": null,
     });
 
-    // تخزين محلي
-    box.write('user_id', uid);
-    box.write('fullName', fullName);
-    box.write('username', username);
-    box.write('email', email);
-    box.write('profileImage', avatarUrl);
-    box.write('is_logged_in', true);
+    // ❌ لا تكتب GetStorage هنا في حال الإيميل غير موثّق
   }
 }

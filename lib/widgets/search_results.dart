@@ -1,6 +1,8 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controller/search_controller.dart';
+import '../models/user_model.dart';
 import '../screens/chat_screen.dart';
 
 class SearchResults extends StatelessWidget {
@@ -19,21 +21,33 @@ class SearchResults extends StatelessWidget {
         itemCount: searchController.searchResults.length,
         itemBuilder: (context, index) {
           var conversation = searchController.searchResults[index];
-          return ListTile(
-            title: Text(conversation.receiverName),
-            subtitle: Text(conversation.receiverUsername),
-            onTap: () {
-              // عند الضغط على اسم المحادثة، ننتقل إلى شاشة المحادثة الخاصة به
-              String profileImageUrl = conversation.receiverImage.isNotEmpty
-                  ? conversation.receiverImage
+          return FutureBuilder<UserModel>(
+            future: searchController.getUserById(conversation.id),
+            builder: (context, userSnapshot) {
+              if (!userSnapshot.hasData) return SizedBox();
+
+              var user = userSnapshot.data!;
+              String profileImageUrl = user.profileImage.isNotEmpty
+                  ? user.profileImage
                   : 'https://i.pravatar.cc/150';
 
-              Get.to(() => ChatScreen(
-                receiverId: conversation.id,
-                receiverName: conversation.receiverName,
-                receiverUsername: conversation.receiverUsername,
-                receiverImage: profileImageUrl,
-              ));
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: CachedNetworkImageProvider(profileImageUrl),
+                ),
+                title: Text(user.fullName),
+                subtitle: Text(user.username),
+                onTap: () {
+                  Get.to(() => ChatScreen(
+                    receiverId: user.id,
+                    receiverName: user.fullName,
+                    receiverUsername: user.username,
+                    receiverImage: profileImageUrl,
+                    bio: user.bio,
+                    birthdate: user.birthDate.toString(),
+                  ));
+                },
+              );
             },
           );
         },

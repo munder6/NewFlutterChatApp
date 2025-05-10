@@ -1,6 +1,8 @@
 import 'package:get/get.dart';
+import 'package:meassagesapp/screens/code_verification_screen.dart';
 import 'package:meassagesapp/screens/home_screen.dart';
 import 'package:meassagesapp/screens/otp_verfiy.dart';
+import 'package:meassagesapp/screens/phone_input_screen.dart';
 import 'package:meassagesapp/screens/settings_screen.dart';
 import 'package:meassagesapp/screens/signup_screen.dart';
 import 'package:meassagesapp/screens/verify_email_screen.dart';
@@ -21,15 +23,17 @@ class AppRoutes {
   static const String verify = '/verify';
   static const String verifyemail = '/verify-email';
   static const String settings = '/settings';
+  static const String phone = '/phone';
 
   static List<GetPage> routes = [
     GetPage(name: splash, page: () => SplashScreen()),
     GetPage(name: onboarding, page: () => OnboardingScreen()),
     GetPage(name: login, page: () => LoginScreen()),
     GetPage(name: signup, page: () => SignupScreen()),
-    GetPage(name: verify, page: () => OtpScreen()),
+    GetPage(name: verify, page: () => CodeVerificationScreen()),
     GetPage(name: verifyemail, page: () => VerifyEmailScreen()),
     GetPage(name: settings, page: () => SettingsScreen()),
+    GetPage(name: phone, page: () => PhoneInputScreen()),
     GetPage(name: main, page: () => MainScreen()),
     GetPage(
       name: home,

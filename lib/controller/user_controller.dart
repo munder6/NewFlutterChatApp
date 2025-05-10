@@ -97,8 +97,12 @@ class UserController extends GetxController with WidgetsBindingObserver {
         showOnlineStatus: currentUser.value!.showOnlineStatus,
         createdAt: currentUser.value!.createdAt,
         isTyping: false,
+        fcmTokens: currentUser.value!.fcmTokens,
+        bio: currentUser.value!.bio, // ✅ مضاف
+        birthDate: currentUser.value!.birthDate, // ✅ مضاف
       );
     }
+
   }
 
   void setTypingStatus(bool isTyping) {
@@ -137,9 +141,13 @@ class UserController extends GetxController with WidgetsBindingObserver {
         showOnlineStatus: value,
         createdAt: currentUser.value!.createdAt,
         isTyping: currentUser.value!.isTyping,
+        fcmTokens: currentUser.value!.fcmTokens,
+        bio: currentUser.value!.bio, // ✅ مضاف
+        birthDate: currentUser.value!.birthDate, // ✅ مضاف
       );
     }
   }
+
   void setupRealtimePresence() async {
     String? uid = box.read('user_id');
     if (uid == null) return;

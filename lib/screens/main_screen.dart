@@ -1,12 +1,14 @@
+import 'dart:ui';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter/services.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:lottie/lottie.dart';
 import 'package:meassagesapp/screens/home_screen.dart';
-import 'package:meassagesapp/screens/new_chat_screen.dart';
 import 'package:meassagesapp/screens/settings_screen.dart';
+import 'package:meassagesapp/screens/stories_screen.dart';
 import '../app_theme.dart';
 
 class MainScreen extends StatefulWidget {
@@ -25,13 +27,8 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     userId = GetStorage().read('user_id');
-
     if (userId != null) {
-      _screens = [
-        HomeScreen(),
-        NewChatScreen(),
-        SettingsScreen(),
-      ];
+      _screens = [HomeScreen(), StoriesGridScreen(), SettingsScreen()];
       isLoading = false;
     } else {
       _loadUserId();
@@ -41,16 +38,8 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _loadUserId() async {
     await Future.delayed(Duration(milliseconds: 500));
     userId = GetStorage().read('user_id');
-
-    _screens = [
-      HomeScreen(),
-      NewChatScreen(),
-      SettingsScreen(),
-    ];
-
-    setState(() {
-      isLoading = false;
-    });
+    _screens = [HomeScreen(), StoriesGridScreen(), SettingsScreen()];
+    setState(() => isLoading = false);
   }
 
   @override
@@ -81,42 +70,85 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor(isDarkMode),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: Container(
-        height: 92,
-        child: BottomNavigationBar(
-          backgroundColor: isDarkMode ? Colors.grey[900] : Colors.grey[100],
-          selectedItemColor: Colors.blue[700],
-          unselectedItemColor: Colors.white,
-          currentIndex: _selectedIndex,
-          onTap: (index) => setState(() => _selectedIndex = index),
-          items: [
-            BottomNavigationBarItem(
-              icon: SvgPicture.asset(
-                'assets/icons/convs.svg',
-                color: _selectedIndex == 0 ? Colors.blue[700] : Colors.white, // تغيير اللون عند التحديد
-              ),
-              label: 'Chats',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(EvaIcons.editOutline),
-              label: 'New Chat',
-            ),
-            BottomNavigationBarItem(
-              icon: SvgPicture.asset(
-                'assets/icons/settings.svg',
-                width: 25,
-                color: _selectedIndex == 2 ? Colors.blue[700] : Colors.white, // تغيير اللون عند التحديد
-              ),
-              label: 'Settings',
-            ),
-          ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: isDarkMode ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        extendBody: true,
+        backgroundColor: AppTheme.backgroundColor(isDarkMode),
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: _screens,
         ),
+        bottomNavigationBar: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 50.0, sigmaY: 50.0),
+            child: Container(
+              height: 65,
+              margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(
+                    icon: EvaIcons.messageCircle,
+                    label: 'Chats',
+                    index: 0,
+                    isDarkMode: isDarkMode,
+                  ),
+                  _buildNavItem(
+                    icon: EvaIcons.bookOpenOutline,
+                    label: 'Stories',
+                    index: 1,
+                    isDarkMode: isDarkMode,
+                  ),
+                  _buildNavItem(
+                    icon: EvaIcons.settings2Outline,
+                    label: 'Settings',
+                    index: 2,
+                    isDarkMode: isDarkMode,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required int index,
+    required bool isDarkMode,
+  }) {
+    final bool isSelected = _selectedIndex == index;
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedIndex = index),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: isSelected ? Colors.blue : (isDarkMode ? Colors.white : Colors.black54),
+            size: 24,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isSelected
+                  ? Colors.blue
+                  : (isDarkMode ? Colors.white70 : Colors.black45),
+            ),
+          ),
+          SizedBox(height: 20,)
+        ],
       ),
     );
   }

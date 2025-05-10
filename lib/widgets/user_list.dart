@@ -16,20 +16,40 @@ class UserList extends StatelessWidget {
     bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Obx(() {
+      // ✅ عرض مؤشر تحميل عند البداية
       if (newChatController.isLoading.value) {
         return Center(child: CircularProgressIndicator());
       }
 
-      if (newChatController.usersList.isEmpty) {
+      // ✅ في حال ما كتب شي، ما نعرض شيء إطلاقًا
+      if (newChatController.searchQuery.value.trim().isEmpty) {
         return Center(
           child: Text(
-            "No users found",
-            style: TextStyle(color: AppTheme.getTextColor(isDarkMode)),
+            "Start typing to search users...",
+            style: TextStyle(
+              color: AppTheme.getTextColor(isDarkMode),
+              fontSize: 14,
+            ),
           ),
         );
       }
 
+      // ✅ لا يوجد نتائج مطابقة
+      if (newChatController.usersList.isEmpty) {
+        return Center(
+          child: Text(
+            "No users found",
+            style: TextStyle(
+              color: AppTheme.getTextColor(isDarkMode),
+              fontSize: 14,
+            ),
+          ),
+        );
+      }
+
+      // ✅ عرض النتائج الفعلية
       return ListView.builder(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: EdgeInsets.zero,
         itemCount: newChatController.usersList.length,
         itemBuilder: (context, index) {
@@ -78,13 +98,16 @@ class UserList extends StatelessWidget {
               color: isDarkMode ? Colors.white : Colors.blue[700],
             ),
             onTap: () {
-              Get.to(() => ChatScreen(
-                receiverId: user.id,
-                receiverName: user.fullName,
-                receiverUsername: user.username,
-                receiverImage: profileImageUrl,
-              ));
-            },
+              Get.to(() =>
+                  ChatScreen(
+                    receiverId: user.id,
+                    receiverName: user.fullName,
+                    receiverUsername: user.username,
+                    receiverImage: profileImageUrl,
+                    bio: user.bio,
+                    birthdate: user.birthDate!,
+                  ));
+            }
           );
         },
       );

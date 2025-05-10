@@ -1,7 +1,10 @@
 // 🔥 AUTH CONTROLLER كامل بعد التعديل 🔥
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -29,10 +32,19 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
   }
 
-  void _checkLoginStatus() {
+  void _checkLoginStatus() async {
     bool isLoggedIn = box.read('is_logged_in') ?? false;
-    if (isLoggedIn) {
-      Get.offAllNamed('/main');
+    User? currentUser = _auth.currentUser;
+
+    if (isLoggedIn && currentUser != null) {
+      await currentUser.reload();
+      if (currentUser.emailVerified) {
+        Get.offAllNamed('/main');
+      } else {
+        await _auth.signOut();
+        box.erase();
+        Get.offAllNamed('/verify-email');
+      }
     }
   }
 
@@ -65,7 +77,6 @@ class AuthController extends GetxController with WidgetsBindingObserver {
       String email = emailOrUsername;
 
       if (!emailOrUsername.contains("@")) {
-        // المستخدم أدخل username → بنبحث عن الايميل المرتبط
         var userQuery = await _firestore.collection('users')
             .where('username', isEqualTo: emailOrUsername)
             .limit(1)
@@ -79,21 +90,27 @@ class AuthController extends GetxController with WidgetsBindingObserver {
         email = userQuery.docs.first['email'];
       }
 
-      // تسجيل الدخول بالبريد وكلمة السر
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      if (userCredential.user != null) {
-        await _setUserLoggedIn();
-        await _updateOnlineStatus(true);
-        Get.offAllNamed('/main');
+      await userCredential.user!.reload();
+      if (!userCredential.user!.emailVerified) {
+        await _auth.signOut();
+        Get.offAllNamed('/verify-email');
+        return;
       }
+
+      await _setUserLoggedIn();
+      await _updateOnlineStatus(true);
+      Get.offAllNamed('/main');
     } catch (e) {
       Get.snackbar("خطأ", "فشل تسجيل الدخول: ${e.toString()}");
     }
   }
+
+
 
   Future<void> signInWithGoogle() async {
     try {
@@ -135,13 +152,26 @@ class AuthController extends GetxController with WidgetsBindingObserver {
   Future<void> signOut() async {
     String? uid = box.read('user_id');
     if (uid != null) {
+      // تحديث حالة الأونلاين في Realtime Database
       DatabaseReference ref = FirebaseDatabase.instance.ref("status/$uid");
       await ref.set({
         "isOnline": false,
         "lastSeen": ServerValue.timestamp,
       });
+
+      // ✅ إزالة fcmToken الخاص بالجهاز الحالي فقط
+      if (Platform.isAndroid) {
+        String? currentFcmToken = await FirebaseMessaging.instance.getToken();
+        if (currentFcmToken != null) {
+          DocumentReference userRef = _firestore.collection('users').doc(uid);
+          await userRef.update({
+            'fcmTokens': FieldValue.arrayRemove([currentFcmToken])
+          });
+        }
+      }
     }
 
+    // تسجيل الخروج من Firebase وتهيئة التطبيق من جديد
     await _auth.signOut();
     box.erase();
     Get.offAllNamed('/onboarding');
@@ -151,7 +181,8 @@ class AuthController extends GetxController with WidgetsBindingObserver {
   Future<void> _setUserLoggedIn() async {
     if (_auth.currentUser != null) {
       String uid = _auth.currentUser!.uid;
-      DocumentSnapshot userDoc = await _firestore.collection("users").doc(uid).get();
+      DocumentReference userRef = _firestore.collection("users").doc(uid);
+      DocumentSnapshot userDoc = await userRef.get();
 
       if (userDoc.exists) {
         var userData = userDoc.data() as Map<String, dynamic>;
@@ -162,11 +193,35 @@ class AuthController extends GetxController with WidgetsBindingObserver {
         box.write('email', userData['email']);
         box.write('is_logged_in', true);
 
-        String? profileImageUrl = userData['profileImageUrl'];
+        // ✅ bio
+        box.write('bio', userData['bio'] ?? '');
+
+        // ✅ birthDate
+        if (userData['birthDate'] is Timestamp) {
+          box.write('birthDate', (userData['birthDate'] as Timestamp).toDate().toIso8601String());
+        } else if (userData['birthDate'] is String) {
+          box.write('birthDate', userData['birthDate']);
+        } else {
+          box.write('birthDate', null);
+        }
+
+        String? profileImageUrl = userData['profileImageUrl'] ?? userData['profileImage'];
         if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
           box.write('profileImageUrl', profileImageUrl);
         } else {
           box.write('profileImageUrl', 'https://i.pravatar.cc/150');
+        }
+
+        // ✅ تحديث fcmToken
+        if (Platform.isAndroid) {
+          String? fcmToken = await FirebaseMessaging.instance.getToken();
+          if (fcmToken != null) {
+            List<String> tokens = List<String>.from(userData['fcmTokens'] ?? []);
+            if (!tokens.contains(fcmToken)) {
+              tokens.add(fcmToken);
+              await userRef.update({'fcmTokens': tokens});
+            }
+          }
         }
       }
     }

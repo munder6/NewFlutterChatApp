@@ -3,19 +3,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/adapters.dart';
 import 'package:meassagesapp/app_theme.dart';
 import 'package:meassagesapp/routers.dart';
+import 'package:meassagesapp/services/audio_player_service.dart';
 import 'controller/auth_controller.dart';
 import 'controller/chat_controller.dart';
 import 'controller/user_controller.dart';
 import 'firebase_options.dart';
+import 'models/message_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp();
+
   }
+  await Hive.initFlutter();
+  Hive.registerAdapter(MessageModelAdapter());
   await GetStorage.init();
+  Get.put(AudioPlayerService());
   Get.put(AuthController()); // تسجيل الكونترولر في GetX
   Get.put(UserController()); // 👈 أضف هذا السطر
   Get.put(ChatController()); // ✅ هنا
@@ -67,7 +75,6 @@ class _MyAppState extends State<MyApp> {
   // تحديث الـ StatusBar و الـ NavigationBar بناءً على الوضع
   void _updateSystemUI(bool? isDarkMode) {
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor: isDarkMode == true ? Colors.black : Colors.white, // لون شريط الحالة
       statusBarIconBrightness: isDarkMode == true ? Brightness.light : Brightness.dark, // لون أيقونات شريط الحالة
       systemNavigationBarColor: isDarkMode == true ? Colors.black : Colors.white, // لون شريط الإيماءات
       systemNavigationBarIconBrightness: isDarkMode == true ? Brightness.light : Brightness.dark, // لون الأيقونات في شريط الإيماءات

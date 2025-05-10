@@ -7,10 +7,7 @@ import 'package:ionicons/ionicons.dart';
 import 'package:lottie/lottie.dart';
 import '../app_theme.dart';
 import '../controller/homescreeen_controller.dart';
-import '../controller/new_chat_controller.dart';
 import '../widgets/conversation_list.dart';
-import '../widgets/search_box.dart';
-import '../widgets/user_list.dart';
 import 'new_chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -46,10 +43,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = AppTheme.backgroundColor(isDarkMode);
 
     if (isLoading) {
       return Scaffold(
-        backgroundColor: AppTheme.backgroundColor(isDarkMode),
+        backgroundColor: backgroundColor,
         body: Center(
           child: Lottie.asset("assets/lottie/splash.json", height: 60),
         ),
@@ -58,7 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (userId == null) {
       return Scaffold(
-        backgroundColor: AppTheme.backgroundColor(isDarkMode),
+        backgroundColor: backgroundColor,
         body: Center(
           child: Text(
             "User not found",
@@ -72,143 +70,79 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Scaffold(
+      backgroundColor: backgroundColor,
       extendBodyBehindAppBar: true,
-      backgroundColor: AppTheme.backgroundColor(isDarkMode),
       appBar: PreferredSize(
-        preferredSize: Size.fromHeight(56),
+        preferredSize: Size.fromHeight(60),
         child: ClipRRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-            child: AppBar(
-              elevation: 0,
-              backgroundColor: isDarkMode
-                  ? Colors.black.withOpacity(0.3)
-                  : Colors.white.withOpacity(0.3),
-              automaticallyImplyLeading: false,
-              centerTitle: false,
-              titleSpacing: 18,
-              title: Text(
-                "messenger",
-                style: TextStyle(
-                  color: isDarkMode ? Colors.white : Colors.blue[700],
-                  fontSize: 35,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              actions: [
-                IconButton(
-                  icon: Icon(
-                    Ionicons.create_outline,
-                    color: isDarkMode ? Colors.white : Colors.blue[700],
-                    size: 26,
+            filter: ImageFilter.blur(sigmaX: 50.0, sigmaY: 50.0),
+            child: Container(
+              height: 110,
+              padding: const EdgeInsets.only(top: 50, left: 20, right: 16),
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'messenger',
+                    style: TextStyle(
+                      fontSize: 35,
+                      fontWeight: FontWeight.w700,
+                      color: isDarkMode ? Colors.white : Colors.blue[700],
+                    ),
                   ),
-                  onPressed: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => _buildBlurredBottomSheet(context, isDarkMode),
-                    );
-                  },
-                ),
-              ],
+                  IconButton(
+                    icon: Icon(Ionicons.pencil, size: 24, color: isDarkMode ? Colors.white : Colors.blue),
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => _buildBlurredBottomSheet(context, isDarkMode),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-      body: Container(
-        margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 56),
-        decoration: BoxDecoration(
-          color: AppTheme.backgroundColor(isDarkMode),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      body: Padding(
+        padding: const EdgeInsets.only(top: 0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: ConversationList(
+            homeController: homeController,
+            userId: userId!,
+          ),
         ),
-        child: ConversationList(
-          homeController: homeController,
-          userId: userId!,
+      ),
+    );
+  }
+
+  Widget _buildBlurredBottomSheet(BuildContext context, bool isDarkMode) {
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          height: screenHeight * 0.89,
+          decoration: BoxDecoration(
+            color: isDarkMode
+                ? Colors.grey.shade800.withOpacity(0.4)
+                : Colors.white.withOpacity(0.65),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+          ),
+          child: NewChatScreen(),
         ),
       ),
     );
   }
 }
-
-Widget _buildBlurredBottomSheet(BuildContext context, bool isDarkMode) {
-  final screenHeight = MediaQuery.of(context).size.height;
-  final NewChatController newChatController = Get.put(NewChatController());
-  final TextEditingController searchControllerText = TextEditingController();
-  final RxString searchQuery = ''.obs;
-
-  return ClipRRect(
-    borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-    child: BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-      child: Container(
-        height: screenHeight * 0.89,
-        decoration: BoxDecoration(
-          color: isDarkMode
-              ? Colors.grey.shade800.withOpacity(0.4)
-              : Colors.white.withOpacity(0.65),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(height: 12),
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18.0),
-              child: Center(
-                child: Text(
-                  "Start New Chat",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: isDarkMode ? Colors.white : Colors.black,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              child: SearchBox(
-                searchControllerText: searchControllerText,
-                onChanged: (value) {
-                  searchQuery.value = value.trim();
-                  newChatController.searchUsers(searchQuery.value);
-                },
-              ),
-            ),
-            SizedBox(height: 10),
-            Expanded(
-              child: Obx(() {
-                return searchQuery.value.isEmpty
-                    ? Center(
-                  child: Text(
-                    "Start typing to search users...",
-                    style: TextStyle(
-                      color: isDarkMode ? Colors.white : Colors.black,
-                      fontSize: 14,
-                    ),
-                  ),
-                )
-                    : UserList(newChatController: newChatController);
-              }),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-

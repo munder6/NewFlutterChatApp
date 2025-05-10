@@ -1,12 +1,15 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:ui';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:get_storage/get_storage.dart';
 import '../controller/auth_controller.dart';
+import '../controller/edit_profile_controller.dart';
 import '../controller/user_controller.dart';
-import '../widgets/search_box.dart';
-import 'edit_profile_screen.dart';
 import '../app_theme.dart';
+import 'edit_profile_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   @override
@@ -17,169 +20,235 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final box = GetStorage();
   final AuthController authController = Get.find<AuthController>();
   final UserController userController = Get.find<UserController>();
-  final TextEditingController searchController = TextEditingController();
-  String searchQuery = "";
+  final EditProfileController editProfileController = Get.put(EditProfileController());
+
 
   late bool isDarkMode;
   late Color bgColor;
   late Color cardColor;
 
-  final List<Map<String, dynamic>> settingsItems = [
-    {
-      "section": "General",
-      "items": [
-        {"title": "Avatar", "icon": Icons.person_outline, "onTap": () {}},
-        {"title": "Lists", "icon": Icons.list_alt, "onTap": () {}},
-        {"title": "Broadcast messages", "icon": Icons.campaign_outlined, "onTap": () {}},
-        {"title": "Starred messages", "icon": Icons.star_border, "onTap": () {}},
-        {"title": "Linked devices", "icon": Icons.devices_other_outlined, "onTap": () {}},
-      ]
-    },
-    {
-      "section": "Security",
-      "items": [
-        {"title": "Account", "icon": Icons.verified_user_outlined, "onTap": () {}},
-        {"title": "Privacy", "icon": Icons.lock_outline, "onTap": () {}},
-        {"title": "Chats", "icon": Icons.chat_bubble_outline, "onTap": () {}},
-        {"title": "Notifications", "icon": Icons.notifications_none_outlined, "onTap": () {}},
-        {"title": "Storage and data", "icon": Icons.storage_rounded, "onTap": () {}},
-      ]
-    },
-    {
-      "section": "Actions",
-      "items": [
-        {
-          "title": "Log Out",
-          "icon": Icons.exit_to_app,
-          "onTap": () async {
-            await Get.find<AuthController>().signOut();
-            Get.offAllNamed('/onboarding');
-          }
-        },
-      ]
-    },
-  ];
+  bool isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
     isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    bgColor = isDarkMode ? Color(0xFF121212) : Colors.grey[200]!;
-    cardColor = isDarkMode ? Color(0xFF1E1E1E) : Colors.white;
+    bgColor = AppTheme.backgroundColor(isDarkMode);
+    cardColor = isDarkMode ? const Color(0xFF131313) : const Color(0xFFF2F2F7);
 
-    String fullName = box.read('fullName') ?? 'John Doe';
-    String email = box.read('email') ?? 'example@gmail.com';
-    String profilePhoto = box.read('profileImageUrl') ?? 'https://i.pravatar.cc/150';
+    final fullName = box.read('fullName') ?? 'John Doe';
+    final email = box.read('email') ?? 'example@gmail.com';
+    final username = box.read('username') ?? '@username';
+    final profilePhoto = box.read('profileImageUrl') ?? 'https://i.pravatar.cc/150';
 
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: bgColor,
-        elevation: 0,
-        title: Text("Settings", style: TextStyle(color: AppTheme.getTextColor(isDarkMode), fontWeight: FontWeight.bold)),
-        centerTitle: false,
-      ),
-      body: ListView(
+      body: Stack(
         children: [
-          // 🔍 Search Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 10.0),
-            child: SearchBox(
-              searchControllerText: searchController,
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value.trim();
-                });
-              },
-            ),
-          ),
-
-          // 🧑‍💼 User Profile
-          if (searchQuery.isEmpty)
-            InkWell(
-              onTap: () => Get.to(() => EditProfileScreen()),
-              child: Container(
-                margin: EdgeInsets.symmetric(horizontal: 15),
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12)),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundImage: CachedNetworkImageProvider(box.read("profileImageUrl") ?? ''),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          CustomScrollView(
+            slivers: [
+              const SliverToBoxAdapter(child: SizedBox(height: 115)),
+              SliverToBoxAdapter(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      isExpanded = !isExpanded;
+                    });
+                  },
+                  child: Column(
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        width: isExpanded ? MediaQuery.of(context).size.width : 110,
+                        height: isExpanded ? MediaQuery.of(context).size.width : 110,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(isExpanded ? 0 : 100),
+                          image: DecorationImage(
+                            image: CachedNetworkImageProvider(profilePhoto),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(fullName,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.getTextColor(isDarkMode),
+                          )),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(fullName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: AppTheme.getTextColor(isDarkMode))),
-                          SizedBox(height: 4),
-                          Text(email, style: TextStyle(color: Colors.grey)),
+                          Text(email, style: const TextStyle(color: Colors.grey)),
+                          const SizedBox(width: 5),
+                          const Text("•", style: TextStyle(color: Colors.grey)),
+                          const SizedBox(width: 5),
+                          Text("@$username", style: const TextStyle(color: Colors.grey)),
                         ],
                       ),
-                    ),
-                    Icon(Icons.qr_code, color: Colors.grey),
-                  ],
+                      const SizedBox(height: 20),
+                    ],
+                  ),
                 ),
               ),
-            ),
+              SliverToBoxAdapter(child: _buildCard([
+                _settingTile(Icons.camera_alt_rounded, "Change Profile Photo", onTap: () {
+                  editProfileController.updateProfileImage(); // ✅ فتح الاستوديو وتحديث الصورة
 
-          SizedBox(height: 10),
+                }),
+              ])),
+              SliverToBoxAdapter(child: _buildAccountsSection()),
+              _sectionTitle("General"),
+              SliverToBoxAdapter(child: _buildCard([
+                _settingTile(CupertinoIcons.person_crop_circle, "My Profile", onTap: () {}),
+                _settingTile(CupertinoIcons.bookmark, "Saved Messages", onTap: () {}),
+                _settingTile(CupertinoIcons.phone, "Recent Calls", onTap: () {}),
+                _settingTile(CupertinoIcons.device_phone_portrait, "Devices", onTap: () {}),
+              ])),
+              _sectionTitle("Security"),
+              SliverToBoxAdapter(child: _buildCard([
+                _settingTile(CupertinoIcons.bell, "Notifications and Sounds", onTap: () {}),
+                _settingTile(CupertinoIcons.lock, "Privacy and Security", onTap: () {}),
+                _settingTile(CupertinoIcons.archivebox, "Data and Storage", onTap: () {}),
+              ])),
+              _sectionTitle("Manage"),
+              SliverToBoxAdapter(child: _buildCard([
+                _settingTile(CupertinoIcons.square_arrow_right, "Log Out", isDestructive: true, onTap: () async {
+                  await authController.signOut();
+                  Get.offAllNamed('/onboarding');
+                }),
+              ])),
+              const SliverToBoxAdapter(child: SizedBox(height: 40)),
+              const SliverToBoxAdapter(child: SizedBox(height: 115)),
 
-          // 🧠 Filtered Settings
-          ..._buildFilteredSections(),
-
-          SizedBox(height: 20),
+            ],
+          ),
+          _blurAppBar(),
         ],
       ),
     );
   }
 
-  List<Widget> _buildFilteredSections() {
-    List<Widget> sections = [];
-
-    for (var section in settingsItems) {
-      List<Widget> filteredItems = [];
-
-      for (var item in section['items']) {
-        if (searchQuery.isEmpty || item['title'].toLowerCase().contains(searchQuery.toLowerCase())) {
-          filteredItems.add(_iconItem(item['icon'], item['title'], item['onTap']));
-        }
-      }
-
-      if (filteredItems.isNotEmpty) {
-        sections.add(_sectionCard(filteredItems));
-        sections.add(SizedBox(height: 10));
-      }
-    }
-
-    if (sections.isEmpty && searchQuery.isNotEmpty) {
-      return [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 40),
-          child: Center(
-            child: Text("No results found", style: TextStyle(color: Colors.grey)),
+  Widget _blurAppBar() {
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          height: 90,
+          padding: const EdgeInsets.only(top: 35, left: 20, right: 20),
+          color: isDarkMode ? Colors.black.withOpacity(0.5) : Colors.white.withOpacity(0.5),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              SvgPicture.asset("assets/icons/qrcode.svg", width: 22, color: Colors.blue),
+              Text("Settings", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.getTextColor(isDarkMode))),
+              GestureDetector(
+                onTap: () => Get.to(() => EditProfileScreen()),
+                child: Text("Edit", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.blue)),
+              ),
+            ],
           ),
-        )
-      ];
-    }
-
-    return sections;
-  }
-
-  Widget _iconItem(IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.grey),
-      title: Text(title, style: TextStyle(color: Colors.grey[300])),
-      onTap: onTap,
+        ),
+      ),
     );
   }
 
-  Widget _sectionCard(List<Widget> children) {
+  Widget _buildCard(List<Widget> tiles) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 15),
-      decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12)),
-      child: Column(children: children),
+      margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: List.generate(
+          tiles.length,
+              (index) => Column(
+            children: [
+              tiles[index],
+              if (index < tiles.length - 1)
+                Divider(height: 1, thickness: 0.3, color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300, indent: 71),
+            ],
+          ),
+        ),
+      ),
     );
+  }
+
+  Widget _settingTile(IconData icon, String title, {VoidCallback? onTap, bool isDestructive = false}) {
+    return SizedBox(
+      height: 48,
+      child: ListTile(
+        leading: Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: _iconBg(icon),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: Colors.white, size: 16),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: isDestructive ? Colors.red : AppTheme.getTextColor(isDarkMode),
+          ),
+        ),
+        onTap: onTap,
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 15),
+      ),
+    );
+  }
+
+  Widget _buildAccountsSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        leading: Icon(Icons.add, color: Colors.blue),
+        title: Text("Add Account", style: TextStyle(fontSize: 14, color: Colors.blue)),
+        onTap: () {},
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 15),
+      ),
+    );
+  }
+
+  SliverToBoxAdapter _sectionTitle(String text) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 5),
+        child: Text(text, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w500, fontSize: 13)),
+      ),
+    );
+  }
+
+  Color _iconBg(IconData icon) {
+    switch (icon) {
+      case CupertinoIcons.bookmark:
+        return Colors.blueAccent;
+      case CupertinoIcons.phone:
+        return Colors.green;
+      case CupertinoIcons.device_phone_portrait:
+        return Colors.orange;
+      case CupertinoIcons.folder:
+        return Colors.lightBlue;
+      case CupertinoIcons.bell:
+        return Colors.redAccent;
+      case CupertinoIcons.lock:
+        return Colors.grey;
+      case CupertinoIcons.archivebox:
+        return Colors.green.shade700;
+      case CupertinoIcons.square_arrow_right:
+        return Colors.red;
+      default:
+        return Colors.blue;
+    }
   }
 }

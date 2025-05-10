@@ -1,20 +1,47 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive/hive.dart';
+part 'message_model.g.dart';
 
-class MessageModel {
+@HiveType(typeId: 0)
+class MessageModel extends HiveObject {
+  @HiveField(0)
   final String id;
+
+  @HiveField(1)
   final String senderId;
+
+  @HiveField(2)
   final String receiverId;
+
+  @HiveField(3)
   String content;
+
+  @HiveField(4)
   final String contentType;
+
+  @HiveField(5)
   final bool isRead;
-  final Timestamp timestamp;
+
+  @HiveField(6)
+  final DateTime timestamp;
+
+  @HiveField(7)
   final String receiverName;
+
+  @HiveField(8)
   final String receiverUsername;
 
-  // ✅ الحقول الجديدة الخاصة بالرد على الستوري
+  @HiveField(9)
   final String? replyToStoryUrl;
+
+  @HiveField(10)
   final String? replyToStoryType;
+
+  @HiveField(11)
   final String? replyToStoryId;
+
+  @HiveField(12)
+  String? localPath;
 
   MessageModel({
     required this.id,
@@ -29,6 +56,7 @@ class MessageModel {
     this.replyToStoryUrl,
     this.replyToStoryType,
     this.replyToStoryId,
+    this.localPath,
   });
 
   factory MessageModel.fromMap(Map<String, dynamic> map) {
@@ -39,12 +67,13 @@ class MessageModel {
       content: map['content'],
       contentType: map['contentType'],
       isRead: map['isRead'],
-      timestamp: map['timestamp'],
+      timestamp: (map['timestamp'] as Timestamp).toDate(),
       receiverName: map['receiverName'],
       receiverUsername: map['receiverUsername'],
       replyToStoryUrl: map['replyToStoryUrl'],
       replyToStoryType: map['replyToStoryType'],
       replyToStoryId: map['replyToStoryId'],
+        localPath: map['localPath'],
     );
   }
 
@@ -56,13 +85,13 @@ class MessageModel {
       'content': content,
       'contentType': contentType,
       'isRead': isRead,
-      'timestamp': timestamp,
+      'timestamp': Timestamp.fromDate(timestamp),
       'receiverName': receiverName,
       'receiverUsername': receiverUsername,
-      // ✅ حقل الرد على ستوري
       'replyToStoryUrl': replyToStoryUrl,
       'replyToStoryType': replyToStoryType,
       'replyToStoryId': replyToStoryId,
+      'localPath': localPath,
     };
   }
 }

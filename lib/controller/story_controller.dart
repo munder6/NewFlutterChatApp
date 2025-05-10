@@ -116,6 +116,33 @@ class StoryController extends GetxController {
     return compressedFile;
   }
 
+  Future<Map<String, List<StoryModel>>> getFirstStoriesWithAllData() async {
+    final usersSnap = await FirebaseFirestore.instance.collection('users').get();
+
+    Map<String, List<StoryModel>> storiesMap = {};
+
+    for (var userDoc in usersSnap.docs) {
+      final userId = userDoc.id;
+
+      final storiesSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('stories')
+          .orderBy('createdAt', descending: false)
+          .get();
+
+      if (storiesSnap.docs.isNotEmpty) {
+        final stories = storiesSnap.docs
+            .map((e) => StoryModel.fromMap(e.data(), e.id))
+            .toList();
+        storiesMap[userId] = stories;
+      }
+    }
+
+    return storiesMap;
+  }
+
+
 
   // ✅ Get all stories of a user
   Stream<List<StoryModel>> getUserStories(String userId) {

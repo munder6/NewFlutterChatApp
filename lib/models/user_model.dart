@@ -11,6 +11,9 @@ class UserModel {
   final bool showOnlineStatus;
   final DateTime createdAt;
   final bool isTyping;
+  final List<String> fcmTokens;
+  final String bio;
+  final String? birthDate; // ✅ صارت String بدل DateTime
 
   UserModel({
     required this.id,
@@ -23,6 +26,9 @@ class UserModel {
     required this.showOnlineStatus,
     required this.createdAt,
     required this.isTyping,
+    required this.fcmTokens,
+    required this.bio,
+    required this.birthDate,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
@@ -39,6 +45,9 @@ class UserModel {
       showOnlineStatus: map['showOnlineStatus'] ?? true,
       createdAt: (map['createdAt'] as Timestamp).toDate(),
       isTyping: map['isTyping'] ?? false,
+      fcmTokens: List<String>.from(map['fcmTokens'] ?? []),
+      bio: map['bio'] ?? '',
+      birthDate: map['birthDate'], // ✅ ما في تحويل، بنقرأها كنص
     );
   }
 }

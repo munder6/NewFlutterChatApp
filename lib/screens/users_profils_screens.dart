@@ -3,9 +3,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../controller/chat_controller.dart';
 import '../models/message_model.dart';
@@ -15,9 +17,10 @@ class UserProfileScreen extends StatefulWidget {
   final String receiverName;
   final String receiverUsername;
   final String receiverImage;
+  final String bio;
+  final String birthdate;
 
-  // نأخذ المتغير من GetStorage
-  final String userId = GetStorage().read('user_id') ?? '';  // جلب الـ user_id من GetStorage
+  final String userId = GetStorage().read('user_id') ?? '';
 
   UserProfileScreen({
     required this.receiverId,
@@ -25,6 +28,8 @@ class UserProfileScreen extends StatefulWidget {
     required this.receiverUsername,
     required this.receiverImage,
     super.key,
+    required this.bio,
+    required this.birthdate,
   });
 
   @override
@@ -32,7 +37,7 @@ class UserProfileScreen extends StatefulWidget {
 }
 
 class _UserProfileScreenState extends State<UserProfileScreen> {
-  bool _isImageExpanded = false;  // لتتبع حالة الصورة إذا كانت مكبرة أم لا
+  bool _isImageExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -44,9 +49,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         backgroundColor: isDarkMode ? Colors.black.withOpacity(0.7) : Colors.white,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: isDarkMode ? Colors.white : Colors.black),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           "User Profile",
@@ -57,93 +60,102 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // First section with blur effect
-            Stack(
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance.collection('users').doc(widget.receiverId).snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return Center(child: CircularProgressIndicator());
+          }
+
+          final userData = snapshot.data!.data() as Map<String, dynamic>;
+          final username = userData['username'] ?? '';
+          final bio = userData['bio'] ?? '';
+          final birthdate = userData['birthDate'] ?? '';
+
+          return SingleChildScrollView(
+            child: Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(0.0),
-                  child: Column(
-                    children: [
-                      // Circular image
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isImageExpanded = !_isImageExpanded;
-                          });
-                        },
-                        child: AnimatedContainer(
-                          duration: Duration(milliseconds: 300),
-                          width: _isImageExpanded ? MediaQuery.of(context).size.width : 130, // تحديد الحجم المكبر
-                          height: _isImageExpanded ? MediaQuery.of(context).size.width : 130, // تحديد الحجم المكبر
-                          decoration: BoxDecoration(
-                            shape: BoxShape.rectangle,  // تغيير الشكل إلى مربع
-                            borderRadius: _isImageExpanded ? BorderRadius.circular(2) : BorderRadius.circular(100), // إضافة حواف دائرية للمربع
-                            image: DecorationImage(
-                              image: CachedNetworkImageProvider(widget.receiverImage),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 15),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildProfileActionButton(EvaIcons.phoneCallOutline, "Call"),
-                          _buildProfileActionButton(EvaIcons.bellOutline, "Mute"),
-                          _buildProfileActionButton(EvaIcons.searchOutline, "Search"),
-                          _buildProfileActionButton(EvaIcons.moreHorizontalOutline, "More"),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            // User Info Card
-            Card(
-              elevation: 0,
-              margin: EdgeInsets.all(16),
-              color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade100,
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: Column(
+                Stack(
                   children: [
-                    _buildUserInfoRow("username", "@${widget.receiverUsername}", showQR: true),  // QR code only here
-                    Divider(thickness: 0.5,),
-                    _buildUserInfoRow("bio", "No Bio Yet !", showQR: false),  // No QR code here
-                    Divider(thickness: 0.5,),
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6.0),
-                      child: GestureDetector(
-                        onTap: () {
-                          print("Block User tapped");
-                        },
-                        child: Row(
-                          children: [
-                            Text(
-                              "Block User",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.normal,
-                                color: Colors.red,
+                      padding: const EdgeInsets.all(0.0),
+                      child: Column(
+                        children: [
+                          GestureDetector(
+                            onTap: () => setState(() => _isImageExpanded = !_isImageExpanded),
+                            child: AnimatedContainer(
+                              duration: Duration(milliseconds: 300),
+                              width: _isImageExpanded ? MediaQuery.of(context).size.width : 130,
+                              height: _isImageExpanded ? MediaQuery.of(context).size.width : 130,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.rectangle,
+                                borderRadius: _isImageExpanded ? BorderRadius.circular(2) : BorderRadius.circular(100),
+                                image: DecorationImage(
+                                  image: CachedNetworkImageProvider(widget.receiverImage),
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                          SizedBox(height: 15),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _buildProfileActionButton(EvaIcons.phoneCallOutline, "Call"),
+                              _buildProfileActionButton(EvaIcons.bellOutline, "Mute"),
+                              _buildProfileActionButton(EvaIcons.searchOutline, "Search"),
+                              _buildProfileActionButton(EvaIcons.moreHorizontalOutline, "More"),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
+                Card(
+                  elevation: 0,
+                  margin: EdgeInsets.all(16),
+                  color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade100,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    child: Column(
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: "@$username"));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Username copied!")),
+                            );
+                          },
+                          child: _buildUserInfoRow("username", "@$username", showQR: true),
+                        ),                        Divider(thickness: 0.5),
+                        _buildUserInfoRow("bio", bio, showQR: false),
+                        Divider(thickness: 0.5),
+                        if (birthdate.trim().isNotEmpty && birthdate.trim().toLowerCase() != "not set")
+                          ...[
+                            _buildUserInfoRow("Birthdate", birthdate, showQR: false),
+                            Divider(thickness: 0.5),
+                          ],
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6.0),
+                          child: GestureDetector(
+                            onTap: () => print("Block User tapped"),
+                            child: Row(
+                              children: [
+                                Text("Block User", style: TextStyle(fontSize: 18, color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                _buildMediaTabs(context),
+              ],
             ),
-            // Media content (Images, Videos, Audio)
-            _buildMediaTabs(context),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -157,7 +169,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           children: [
             Icon(icon),
             SizedBox(height: 5),
-            Text(label)
+            Text(label),
           ],
         ),
       ),
@@ -170,20 +182,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-            ),
+            Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             SizedBox(height: 2),
-            Text(
-              value,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue[700]),
-            ),
+            Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue[700])),
           ],
         ),
         Spacer(),
         if (showQR)
-          SvgPicture.asset("assets/icons/qrcode.svg", color: Colors.blue[700], width: 28)  // Show QR code here only
+          SvgPicture.asset("assets/icons/qrcode.svg", color: Colors.blue[700], width: 28),
       ],
     );
   }
@@ -201,9 +207,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             ],
             indicatorColor: Colors.blue[700],
           ),
-          // Use MediaQuery to get dynamic height
           Container(
-            height: MediaQuery.of(context).size.height * 0.4,  // Height based on screen size
+            height: MediaQuery.of(context).size.height * 0.4,
             child: TabBarView(
               children: [
                 _buildMediaSection("Images", widget.receiverId, "image"),
@@ -354,6 +359,5 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       ),
     );
   }
-
 }
 

@@ -1,0 +1,7 @@
+<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <!-- المستطيل الخلفي (فاتح) -->
+    <rect x="11" y="5" width="8" height="14" rx="2" fill="#B0B0B0"/>
+
+    <!-- المستطيل الأمامي (غامق) -->
+    <rect x="5" y="4" width="10" height="16" rx="2.5" fill="#D6D6D6"/>
+</svg>

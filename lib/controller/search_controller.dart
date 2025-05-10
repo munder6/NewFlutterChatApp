@@ -1,43 +1,51 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import '../models/conversation_model.dart';
+import '../models/user_model.dart';
 
 class SearchConversationsController extends GetxController {
   var searchResults = <ConversationModel>[].obs;
   var isLoading = false.obs;
 
-  // دالة البحث عن المحادثات
+  // البحث في محادثات المستخدم الحالي حسب الاسم
   void searchConversations(String query, String userId) async {
     if (query.isEmpty) {
-      searchResults.clear(); // إذا كان الاستعلام فارغًا، يتم مسح النتائج
+      searchResults.clear();
       return;
     }
 
-    isLoading.value = true; // تعيين حالة التحميل إلى true عند بدء البحث
+    isLoading.value = true;
 
     try {
-      // تحويل النص المدخل إلى أحرف صغيرة
       String queryLowerCase = query.toLowerCase();
 
-      // البحث عن المحادثات في Firestore باستخدام where
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(userId)
           .collection('chats')
           .where('receiverName', isGreaterThanOrEqualTo: queryLowerCase)
-          .where('receiverName', isLessThanOrEqualTo: queryLowerCase + '\uf8ff')
+          .where('receiverName', isLessThanOrEqualTo: queryLowerCase + '')
           .get();
 
-      // فلترة النتائج بناءً على الاستعلام (بدون التفرقة بين الأحرف الكبيرة والصغيرة)
       List<ConversationModel> conversations = querySnapshot.docs.map((doc) {
         return ConversationModel.fromMap(doc.data() as Map<String, dynamic>);
       }).toList();
 
-      searchResults.value = conversations; // تعيين نتائج البحث
+      searchResults.value = conversations;
     } catch (e) {
       print("Error searching conversations: $e");
     } finally {
-      isLoading.value = false; // تعيين حالة التحميل إلى false بعد انتهاء البحث
+      isLoading.value = false;
+    }
+  }
+
+  // جلب بيانات المستخدم الكامل باستخدام الـ ID
+  Future<UserModel> getUserById(String userId) async {
+    final doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    if (doc.exists) {
+      return UserModel.fromMap(doc.data()!);
+    } else {
+      throw Exception("User not found");
     }
   }
 }

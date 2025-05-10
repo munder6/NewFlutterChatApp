@@ -1,80 +1,53 @@
-import 'package:firebase_auth/firebase_auth.dart';
+// ✅ verify_email_screen.dart (واجهة تنبيه المستخدم لتأكيد البريد)
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../app_theme.dart';
 
-class VerifyEmailScreen extends StatefulWidget {
-  @override
-  _VerifyEmailScreenState createState() => _VerifyEmailScreenState();
-}
-
-class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  bool isVerified = false;
-  bool isResending = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkEmailVerified();
-  }
-
-  // 🔹 التحقق مما إذا كان البريد الإلكتروني قد تم تأكيده
-  Future<void> _checkEmailVerified() async {
-    User? user = _auth.currentUser;
-    await user?.reload();
-    if (user != null && user.emailVerified) {
-      setState(() => isVerified = true);
-      Get.offAllNamed('/home');
-    }
-  }
-
-  // 🔹 إعادة إرسال رابط التحقق
-  Future<void> _resendVerificationEmail() async {
-    try {
-      setState(() => isResending = true);
-      await _auth.currentUser?.sendEmailVerification();
-      Get.snackbar("تم الإرسال", "تم إرسال رابط التحقق مرة أخرى إلى بريدك الإلكتروني.");
-    } catch (e) {
-      Get.snackbar("خطأ", "فشل إرسال البريد الإلكتروني: ${e.toString()}");
-    } finally {
-      setState(() => isResending = false);
-    }
-  }
+class VerifyEmailScreen extends StatelessWidget {
+  const VerifyEmailScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      body: Center(
+      backgroundColor: AppTheme.backgroundColor(isDarkMode),
+      body: SafeArea(
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(Icons.email, size: 100, color: Colors.orange),
-              SizedBox(height: 20),
+              const SizedBox(height: 60),
+              Icon(Icons.email_outlined, size: 100, color: AppTheme.primaryColor(isDarkMode)),
+              const SizedBox(height: 30),
               Text(
-                "قم بتأكيد بريدك الإلكتروني",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                "Cheack Your E-mail",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.getTextColor(isDarkMode),
+                ),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: 10),
+              const SizedBox(height: 16),
               Text(
-                "لقد أرسلنا رابط تحقق إلى بريدك الإلكتروني. يرجى التحقق منه قبل تسجيل الدخول.",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                "We've sent a verification link to your email. Please click it to activate your account.",
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppTheme.getTextColor(isDarkMode).withOpacity(0.7),
+                ),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 40),
               ElevatedButton(
-                onPressed: _checkEmailVerified,
-                child: Text("تحقق الآن"),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-              ),
-              SizedBox(height: 10),
-              isResending
-                  ? CircularProgressIndicator()
-                  : TextButton(
-                onPressed: _resendVerificationEmail,
-                child: Text("إعادة إرسال البريد الإلكتروني", style: TextStyle(color: Colors.orange)),
+                onPressed: () => Get.offAllNamed('/login'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor(isDarkMode),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 32),
+                ),
+                child: const Text("Return to login", style: TextStyle(fontSize: 16, color: Colors.white)),
               ),
             ],
           ),
