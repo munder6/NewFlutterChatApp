@@ -1,0 +1,2 @@
+/Users/munder/Desktop/meassagesapp/android/app/.cxx/RelWithDebInfo/1o1j1or1/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/munder/Desktop/meassagesapp/android/app/.cxx/RelWithDebInfo/1o1j1or1/armeabi-v7a/CMakeFiles/rebuild_cache.dir

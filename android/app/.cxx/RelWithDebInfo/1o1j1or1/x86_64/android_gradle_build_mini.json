@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "/Users/munder/src/flutter/packages/flutter_tools/gradle/src/main/groovy/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/munder/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/munder/Desktop/meassagesapp/android/app/.cxx/RelWithDebInfo/1o1j1or1/x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/munder/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/munder/Desktop/meassagesapp/android/app/.cxx/RelWithDebInfo/1o1j1or1/x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {}
+}
