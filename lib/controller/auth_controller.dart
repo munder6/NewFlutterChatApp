@@ -1,4 +1,3 @@
-// 🔥 AUTH CONTROLLER كامل بعد التعديل 🔥
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -34,16 +33,22 @@ class AuthController extends GetxController with WidgetsBindingObserver {
 
   void _checkLoginStatus() async {
     bool isLoggedIn = box.read('is_logged_in') ?? false;
+    bool isEmailVerifiedCached = box.read('email_verified') ?? false;
     User? currentUser = _auth.currentUser;
 
     if (isLoggedIn && currentUser != null) {
-      await currentUser.reload();
-      if (currentUser.emailVerified) {
+      if (isEmailVerifiedCached) {
         Get.offAllNamed('/main');
       } else {
-        await _auth.signOut();
-        box.erase();
-        Get.offAllNamed('/verify-email');
+        await currentUser.reload();
+        if (currentUser.emailVerified) {
+          box.write('email_verified', true);
+          Get.offAllNamed('/main');
+        } else {
+          await _auth.signOut();
+          box.erase();
+          Get.offAllNamed('/verify-email');
+        }
       }
     }
   }
@@ -71,7 +76,6 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-  // 🔥 تسجيل الدخول بواسطة ايميل أو يوزرنيم 🔥
   Future<void> signInWithEmailOrUsername(String emailOrUsername, String password) async {
     try {
       String email = emailOrUsername;
@@ -110,8 +114,6 @@ class AuthController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-
-
   Future<void> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
@@ -125,13 +127,11 @@ class AuthController extends GetxController with WidgetsBindingObserver {
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-      // ✅ هذا هو السطر المهم الذي كنت ناسيه
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // ✅ تسجيل الدخول باستخدام الـ credential
       await _auth.signInWithCredential(credential);
 
       await _setUserLoggedIn();
@@ -152,14 +152,12 @@ class AuthController extends GetxController with WidgetsBindingObserver {
   Future<void> signOut() async {
     String? uid = box.read('user_id');
     if (uid != null) {
-      // تحديث حالة الأونلاين في Realtime Database
       DatabaseReference ref = FirebaseDatabase.instance.ref("status/$uid");
       await ref.set({
         "isOnline": false,
         "lastSeen": ServerValue.timestamp,
       });
 
-      // ✅ إزالة fcmToken الخاص بالجهاز الحالي فقط
       if (Platform.isAndroid) {
         String? currentFcmToken = await FirebaseMessaging.instance.getToken();
         if (currentFcmToken != null) {
@@ -171,13 +169,11 @@ class AuthController extends GetxController with WidgetsBindingObserver {
       }
     }
 
-    // تسجيل الخروج من Firebase وتهيئة التطبيق من جديد
     await _auth.signOut();
     box.erase();
     Get.offAllNamed('/onboarding');
   }
 
-  // ✅ تخزين معلومات اليوزر عند تسجيل الدخول
   Future<void> _setUserLoggedIn() async {
     if (_auth.currentUser != null) {
       String uid = _auth.currentUser!.uid;
@@ -192,11 +188,10 @@ class AuthController extends GetxController with WidgetsBindingObserver {
         box.write('username', userData['username']);
         box.write('email', userData['email']);
         box.write('is_logged_in', true);
+        box.write('email_verified', _auth.currentUser!.emailVerified); // ✅ تم إضافتها
 
-        // ✅ bio
         box.write('bio', userData['bio'] ?? '');
 
-        // ✅ birthDate
         if (userData['birthDate'] is Timestamp) {
           box.write('birthDate', (userData['birthDate'] as Timestamp).toDate().toIso8601String());
         } else if (userData['birthDate'] is String) {
@@ -212,7 +207,6 @@ class AuthController extends GetxController with WidgetsBindingObserver {
           box.write('profileImageUrl', 'https://i.pravatar.cc/150');
         }
 
-        // ✅ تحديث fcmToken
         if (Platform.isAndroid) {
           String? fcmToken = await FirebaseMessaging.instance.getToken();
           if (fcmToken != null) {

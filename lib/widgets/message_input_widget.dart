@@ -216,19 +216,27 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
                       ),
                     ),
                   ),
+                  SizedBox(width: 10),
                   _showSend
-                      ? IconButton(
-                    icon: Icon(Icons.send_rounded, color: Colors.blueAccent),
-                    onPressed: _handleSend,
-                  )
-                      : IconButton(
-                    icon: Icon(CupertinoIcons.mic, color: iconColor),
-                    onPressed: () async {
-                      await widget.audioController.startRecording();
-                      _startTimer();
-                      setState(() => _isRecording = true);
-                    },
-                  ),
+                      ? CircleAvatar(
+                    backgroundColor: isDark ? Colors.grey[900] : Colors.grey[200],
+                        child: IconButton(
+                                            icon: Icon(EvaIcons.paperPlaneOutline, color: Colors.purpleAccent),
+                                            onPressed: _handleSend,
+                                          ),
+                      )
+                      : CircleAvatar(
+                    backgroundColor: isDark ? Colors.grey[900] : Colors.grey[200],
+
+                    child: IconButton(
+                                            icon: Icon(CupertinoIcons.mic, color: iconColor),
+                                            onPressed: () async {
+                        await widget.audioController.startRecording();
+                        _startTimer();
+                        setState(() => _isRecording = true);
+                                            },
+                                          ),
+                      ),
                 ],
               ),
             ),

@@ -67,7 +67,7 @@ class SignupController extends GetxController {
 
       if (await isUserDataTaken(email, username)) return;
 
-      String avatarUrl = "https://k.top4top.io/p_3330owv2f1.png";
+      String avatarUrl = "https://k.top4top.io/p_3420dts941.png";
 
       await _saveUserData(userCredential.user!, displayName, username, email, avatarUrl);
 

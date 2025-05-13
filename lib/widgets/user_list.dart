@@ -105,7 +105,7 @@ class UserList extends StatelessWidget {
                     receiverUsername: user.username,
                     receiverImage: profileImageUrl,
                     bio: user.bio,
-                    birthdate: user.birthDate!,
+                    birthdate: user.birthDate ?? "Not Set",
                   ));
             }
           );

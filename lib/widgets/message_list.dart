@@ -7,7 +7,7 @@ import '../controller/chat_controller.dart';
 import '../models/message_model.dart';
 import 'sender_message_card.dart';
 
-class MessageList extends StatelessWidget {
+class MessageList extends StatefulWidget {
   final List<MessageModel> messages;
   final String currentUserId;
 
@@ -18,19 +18,41 @@ class MessageList extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final chatController = Get.find<ChatController>();
+  State<MessageList> createState() => _MessageListState();
+}
 
-    // Find the last read message index for current user
+class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
+  late ChatController chatController;
+
+  @override
+  void initState() {
+    super.initState();
+    chatController = Get.find<ChatController>();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+
+
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final messages = widget.messages;
+    final currentUserId = widget.currentUserId;
+
     int? lastReadIndex;
     for (int i = 0; i < messages.length; i++) {
       if (messages[i].senderId == currentUserId && messages[i].isRead) {
         lastReadIndex = i;
-        break; // First read from top (since ListView is reversed)
+        break;
       }
     }
 
-    // Check if receiver sent a message after the last read one
     bool receiverSentAfterRead = false;
     if (lastReadIndex != null) {
       for (int j = 0; j < lastReadIndex; j++) {
@@ -42,7 +64,6 @@ class MessageList extends StatelessWidget {
     }
 
     return ListView.builder(
-      padding: EdgeInsets.only(bottom: 110, top: 110),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       reverse: true,
       itemCount: messages.length,
@@ -66,20 +87,18 @@ class MessageList extends StatelessWidget {
 
         if (msg.contentType == "video") {
           chatController.generateAndCacheThumbnail(msg.content).then((_) {
-            (context as Element).markNeedsBuild();
+            if (mounted) setState(() {});
           });
         }
 
-        final isLastInConversation =
-            index == 0 ||
-                (next != null && next.senderId != msg.senderId) ||
-                (next != null && _hasTimeGap(msg.timestamp, next.timestamp));
+        final isLastInConversation = index == 0 ||
+            (next != null && next.senderId != msg.senderId) ||
+            (next != null && _hasTimeGap(msg.timestamp, next.timestamp));
 
-        final bool showSeenIndicator =
-            isSender &&
-                msg.isRead &&
-                index == lastReadIndex &&
-                !receiverSentAfterRead;
+        final bool showSeenIndicator = isSender &&
+            msg.isRead &&
+            index == lastReadIndex &&
+            !receiverSentAfterRead;
 
         return Column(
           crossAxisAlignment:
@@ -101,8 +120,9 @@ class MessageList extends StatelessWidget {
                     child: Text(
                       'Seen',
                       style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600),
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                   )
               ],

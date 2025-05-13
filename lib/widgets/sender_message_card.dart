@@ -48,7 +48,7 @@ class SenderMessageCard extends StatelessWidget {
 
     BorderRadiusGeometry borderRadius;
     if (isFirstInGroup && isLastInGroup) {
-      borderRadius = BorderRadius.circular(50);
+      borderRadius = BorderRadius.circular(20);
     } else if (isFirstInGroup) {
       borderRadius = const BorderRadius.only(
         topLeft: Radius.circular(20),

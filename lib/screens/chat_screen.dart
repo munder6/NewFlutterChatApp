@@ -51,12 +51,6 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     audioController = AudioController()..initRecorder();
-
-    String? senderId = box.read('user_id');
-    if (senderId != null) {
-      chatController.markMessagesAsRead(senderId, widget.receiverId);
-    }
-
     _timer = Timer.periodic(Duration(seconds: 60), (_) {});
   }
 
@@ -98,7 +92,6 @@ class _ChatScreenState extends State<ChatScreen> {
         appBar: _buildAppBar(isDark),
         body: Stack(
           children: [
-            /// الرسائل
             Positioned.fill(
               child: StreamBuilder<List<MessageModel>>(
                 stream: chatController.getMessages(senderId, widget.receiverId),
@@ -106,19 +99,30 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return SizedBox();
                   }
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+
+                  final messages = snapshot.data ?? [];
+
+                  if (messages.isNotEmpty) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      chatController.markMessagesAsRead(senderId, widget.receiverId);
+                    });
+                  }
+
+                  if (messages.isEmpty) {
                     return Center(child: Text("No messages"));
                   }
-                  final messages = snapshot.data!;
-                  return MessageList(
-                    messages: messages.reversed.toList(),
-                    currentUserId: senderId,
+
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 0.0, bottom: 61),
+                    child: MessageList(
+                      messages: messages.reversed.toList(),
+                      currentUserId: senderId,
+                    ),
                   );
                 },
               ),
             ),
 
-            /// شريط الكتابة مع بلور شفاف حقيقي
             Align(
               alignment: Alignment.bottomCenter,
               child: ClipRRect(
@@ -126,7 +130,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
                   child: Container(
-
                     width: double.infinity,
                     padding: EdgeInsets.only(bottom: 0, top: 6, left: 8, right: 8),
                     decoration: BoxDecoration(
@@ -169,9 +172,7 @@ class _ChatScreenState extends State<ChatScreen> {
             height: 110,
             padding: const EdgeInsets.only(top: 50, left: 12, right: 12),
             alignment: Alignment.centerLeft,
-            color: isDark
-                ? Colors.black.withOpacity(0.7)
-                : Colors.white.withOpacity(0.7),
+            color: isDark ? Colors.black.withOpacity(0.7) : Colors.white.withOpacity(0.7),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,7 +182,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   onPressed: () => Get.back(),
                   color: AppTheme.getTextColor(isDark),
                 ),
-
                 GestureDetector(
                   onTap: () {
                     Get.to(() => UserProfileScreen(
@@ -194,7 +194,6 @@ class _ChatScreenState extends State<ChatScreen> {
                     ));
                   },
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -224,8 +223,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                     .onValue,
                                 builder: (context, statusSnap) {
                                   String status = "";
-                                  if (statusSnap.hasData &&
-                                      statusSnap.data!.snapshot.value != null) {
+                                  if (statusSnap.hasData && statusSnap.data!.snapshot.value != null) {
                                     final realtimeData =
                                     Map<String, dynamic>.from(statusSnap.data!.snapshot.value as Map);
                                     final isOnline = realtimeData['isOnline'] == true;
@@ -236,7 +234,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                     } else if (isOnline) {
                                       status = "Online";
                                     } else if (lastSeen != null) {
-                                      final seen = DateTime.fromMillisecondsSinceEpoch(lastSeen);
+                                      final seen =
+                                      DateTime.fromMillisecondsSinceEpoch(lastSeen);
                                       final diff = DateTime.now().difference(seen);
 
                                       if (diff.inMinutes < 1) {
@@ -266,12 +265,10 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                         ],
                       ),
-
                       const SizedBox(width: 10),
                     ],
                   ),
                 ),
-
                 GestureDetector(
                   onTap: () {
                     Get.to(() => UserProfileScreen(
@@ -280,7 +277,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       receiverUsername: widget.receiverUsername,
                       receiverImage: widget.receiverImage,
                       bio: widget.bio,
-                      birthdate: widget.birthdate.toString(),
+                      birthdate: widget.birthdate,
                     ));
                   },
                   child: ClipRRect(
@@ -289,7 +286,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       imageUrl: widget.receiverImage,
                       height: 40,
                       width: 40,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.fitHeight,
                       placeholder: (_, __) => CircleAvatar(backgroundColor: Colors.grey.shade300),
                       errorWidget: (_, __, ___) => CircleAvatar(backgroundColor: Colors.grey.shade300),
                     ),

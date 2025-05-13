@@ -104,7 +104,6 @@ class EditProfileController extends GetxController {
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       duration: Duration(seconds: 3),
     );
-
   }
 
   Future<void> updateBio(String newBio) async {
@@ -133,7 +132,6 @@ class EditProfileController extends GetxController {
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       duration: Duration(seconds: 3),
     );
-
   }
 
   Future<void> updateBirthDate(String newBirthDate) async {
@@ -162,7 +160,6 @@ class EditProfileController extends GetxController {
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       duration: Duration(seconds: 3),
     );
-
   }
 
   Future<void> updateProfileImage() async {
@@ -170,7 +167,7 @@ class EditProfileController extends GetxController {
     if (!status.isGranted) {
       final PermissionStatus result = await Permission.photos.request();
       if (!result.isGranted) {
-        Get.snackbar("رفض الإذن", "يرجى منح صلاحية الوصول للمتابعة.");
+        Get.snackbar("Permission Declined", "Please allow access to your images to proceed.");
         return;
       }
     }
@@ -180,42 +177,35 @@ class EditProfileController extends GetxController {
 
     File originalFile = File(pickedFile.path);
 
-    // ✂️ قص الصورة باستخدام ImageCropper
     final CroppedFile? cropped = await ImageCropper().cropImage(
       sourcePath: originalFile.path,
       compressFormat: ImageCompressFormat.jpg,
       compressQuality: 100,
-      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1), // ✅ مربع دائمًا
-
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
       uiSettings: [
         AndroidUiSettings(
-          toolbarTitle: 'تعديل الصورة',
+          toolbarTitle: 'Edit Photo',
           toolbarColor: Colors.black,
           toolbarWidgetColor: Colors.white,
           lockAspectRatio: false,
         ),
         IOSUiSettings(
-          title: 'تعديل الصورة',
+          title: 'Edit Photo',
         ),
       ],
     );
 
     if (cropped == null) {
-      Get.snackbar("إلغاء", "لم يتم قص الصورة.");
+      Get.snackbar("Cancelled", "Image cropping was cancelled.");
       return;
     }
 
-    originalFile = File(cropped.path); // 🔁 استخدم الصورة المقصوصة
+    originalFile = File(cropped.path);
 
     isUploadingImage.value = true;
 
     try {
-      print('🔼 رفع صورة البروفايل');
-      print("📁 الصورة الأصلية: ${originalFile.path}");
-      print("📏 الحجم الأصلي: ${await originalFile.length()} bytes");
-
       File compressedFile = await _compressFile(originalFile);
-      print("📦 الحجم بعد الضغط: ${await compressedFile.length()} bytes");
 
       String fileName = 'profile_images/${box.read('user_id')}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final ref = _storage.ref().child(fileName);
@@ -224,7 +214,7 @@ class EditProfileController extends GetxController {
 
       uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
         final progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        print('📤 رفع قيد التنفيذ: ${progress.toStringAsFixed(2)}%');
+        print('Uploading... ${progress.toStringAsFixed(2)}%');
       });
 
       final TaskSnapshot snapshot = await uploadTask;
@@ -243,11 +233,11 @@ class EditProfileController extends GetxController {
         "",
         "",
         titleText: Text(
-          "تم تحديث الصورة الشخصية",
+          "Profile Image Updated",
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green.shade700),
         ),
         messageText: Text(
-          "تم تحديث صورتك الشخصية بنجاح.",
+          "Your profile photo has been updated successfully.",
           style: TextStyle(fontSize: 13, color: Colors.green.shade700),
         ),
         snackPosition: SnackPosition.TOP,
@@ -258,12 +248,11 @@ class EditProfileController extends GetxController {
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         duration: Duration(seconds: 3),
       );
-
     } catch (e) {
-      print('🔥🔥🔥 ERROR UPDATING PROFILE IMAGE: $e');
+      print('Error updating profile image: $e');
       Get.snackbar(
-        "خطأ",
-        "حدث خطأ أثناء رفع صورة الملف الشخصي.",
+        "Error",
+        "An error occurred while uploading your profile image.",
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red,
         colorText: Colors.white,
