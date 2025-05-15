@@ -38,12 +38,44 @@ class ChatController extends GetxController {
     return chatBox.values.toList().cast<MessageModel>();
   }
 
-  Stream<List<MessageModel>> getMessages(String senderId, String receiverId) async* {
-    final chatBox = await openChatBox(_chatKey(senderId, receiverId));
+  // final Map<String, String> senderImageCache = {};
 
-    yield chatBox.values.toList().cast<MessageModel>();
+  Future<String> getSenderImage(String senderId) async {
+    if (senderImageCache.containsKey(senderId)) {
+      return senderImageCache[senderId]!;
+    }
 
-    yield* _firestore
+    final snapshot = await FirebaseFirestore.instance.collection('users').doc(senderId).get();
+    final imageUrl = snapshot.data()?['profileImageUrl'] ?? 'https://i.pravatar.cc/150?u=$senderId';
+    senderImageCache[senderId] = imageUrl;
+    return imageUrl;
+  }
+
+  final Map<String, String> senderImageCache = {};
+
+  Future<void> preloadSenderImages(List<MessageModel> messages) async {
+    for (final msg in messages) {
+      if (!senderImageCache.containsKey(msg.senderId)) {
+        try {
+          final snapshot = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(msg.senderId)
+              .get();
+
+          final imageUrl = snapshot.data()?['profileImageUrl'] ??
+              'https://i.pravatar.cc/150?u=${msg.senderId}';
+
+          senderImageCache[msg.senderId] = imageUrl;
+        } catch (e) {
+          print("⚠️ Error loading image for ${msg.senderId}: $e");
+        }
+      }
+    }
+  }
+
+
+  Stream<List<MessageModel>> getMessages(String senderId, String receiverId) {
+    return _firestore
         .collection('users')
         .doc(senderId)
         .collection('chats')
@@ -52,13 +84,10 @@ class ChatController extends GetxController {
         .orderBy('timestamp')
         .snapshots()
         .map((snapshot) {
-      final newMessages = snapshot.docs.map((doc) => MessageModel.fromMap(doc.data())).toList();
-
-      // تحديث الكاش
-      for (var message in newMessages) {
-        chatBox.put(message.id, message);
-      }
-
+      final newMessages = snapshot.docs
+          .map((doc) => MessageModel.fromMap(doc.data(), docId: doc.id))
+          .toList();
+      messages.assignAll(newMessages);
       return newMessages;
     });
   }
@@ -81,7 +110,7 @@ class ChatController extends GetxController {
         String? replyToStoryUrl,
         String? replyToStoryType,
         String? replyToStoryId,
-        String? localPath, // ✅ أضف هذا
+        String? localPath,
       }) async {
     try {
       String senderName = box.read('fullName') ?? 'Unknown Sender';
@@ -93,8 +122,7 @@ class ChatController extends GetxController {
       String? receiverImage = box.read('receiverImage_$receiverId');
 
       if (receiverName == null || receiverUsername == null || receiverImage == null) {
-        DocumentSnapshot receiverDoc =
-        await _firestore.collection('users').doc(receiverId).get();
+        DocumentSnapshot receiverDoc = await _firestore.collection('users').doc(receiverId).get();
         if (receiverDoc.exists) {
           Map<String, dynamic>? receiverData = receiverDoc.data() as Map<String, dynamic>?;
           receiverName = receiverData?['fullName'] ?? 'Unknown Receiver';
@@ -108,7 +136,7 @@ class ChatController extends GetxController {
       }
 
       String messageId = _firestore.collection('messages').doc().id;
-      final timestamp = Timestamp.now().toDate();
+      final provisionalTimestamp = DateTime.now();
 
       MessageModel message = MessageModel(
         id: messageId,
@@ -117,37 +145,35 @@ class ChatController extends GetxController {
         content: content,
         contentType: contentType,
         isRead: false,
-        timestamp: timestamp,
+        timestamp: provisionalTimestamp,
         receiverName: receiverName ?? 'Unknown Receiver',
         receiverUsername: receiverUsername ?? 'UnknownUsername',
         replyToStoryUrl: replyToStoryUrl,
         replyToStoryType: replyToStoryType,
         replyToStoryId: replyToStoryId,
-        localPath: localPath, // ✅ أضف هذا السطر
+        localPath: localPath,
       );
 
-      // ✅ تخزين محليًا في Hive
-      final chatBox = await openChatBox(_chatKey(senderId, receiverId));
-      await chatBox.put(message.id, message);
+      final messageData = message.toMap(useServerTimestamp: true);
 
-      // ✅ إرسال إلى Firestore (الطرفين)
+      // Add to sender's Firestore
       await _firestore
           .collection('users')
           .doc(senderId)
           .collection('chats')
           .doc(receiverId)
           .collection('messages')
-          .add(message.toMap());
+          .add(messageData);
 
+      // Add to receiver's Firestore
       await _firestore
           .collection('users')
           .doc(receiverId)
           .collection('chats')
           .doc(senderId)
           .collection('messages')
-          .add(message.toMap());
+          .add(messageData);
 
-      // ✅ تحديث بيانات المحادثة الأخيرة
       final receiverChatRef = _firestore
           .collection('users')
           .doc(receiverId)
@@ -169,7 +195,7 @@ class ChatController extends GetxController {
 
         transaction.set(receiverChatRef, {
           'lastMessage': lastMessagePreview,
-          'timestamp': Timestamp.fromDate(timestamp),
+          'timestamp': FieldValue.serverTimestamp(),
           'receiverName': senderName,
           'receiverUsername': senderUsername,
           'receiverImage': senderImage,
@@ -185,24 +211,24 @@ class ChatController extends GetxController {
 
       await senderChatRef.set({
         'lastMessage': lastMessagePreview,
-        'timestamp': Timestamp.fromDate(timestamp),
+        'timestamp': FieldValue.serverTimestamp(),
         'receiverName': receiverName,
         'receiverUsername': receiverUsername,
         'receiverImage': receiverImage,
         'unreadMessages': 0,
       }, SetOptions(merge: true));
 
-      // ✅ إرسال إشعار
-      final receiverDoc =
-      await _firestore.collection('users').doc(receiverId).get();
+      // Send push notification (v1)
+      final receiverDoc = await _firestore.collection('users').doc(receiverId).get();
       final receiverFcmToken = receiverDoc.data()?['fcmToken'];
 
       if (receiverFcmToken != null && receiverFcmToken.isNotEmpty) {
-        await NotificationController.sendPushNotification(
+        await NotificationController.sendPushNotificationV1(
           token: receiverFcmToken,
           title: senderName,
           body: lastMessagePreview,
         );
+        print('✅ Notification sent successfully to $receiverUsername');
       }
     } catch (e) {
       print("❌ Error sending message: $e");
@@ -210,14 +236,101 @@ class ChatController extends GetxController {
   }
 
 
-  Future<void> deleteMessageLocally(String messageId) async {
-    messages.removeWhere((msg) => msg.id == messageId);
+
+  void listenToMessages(String senderId, String receiverId) {
+    getMessages(senderId, receiverId).listen((msgList) {
+      messages.assignAll(msgList);
+    });
   }
 
-  Future<void> deleteMessageForAll(String messageId) async {
+
+  Future<void> deleteMessageLocally(String messageId, String receiverId) async {
     try {
-      String senderId = box.read('user_id');
-      String receiverId = box.read('chat_with');
+      final String senderId = box.read('user_id');
+
+      // حذف من Firestore (فقط من مسار المستخدم الحالي)
+      final userMessagesRef = _firestore
+          .collection('users')
+          .doc(senderId)
+          .collection('chats')
+          .doc(receiverId)
+          .collection('messages');
+
+      // جلب الرسالة قبل الحذف
+      final snapshot = await userMessagesRef.where('id', isEqualTo: messageId).get();
+      if (snapshot.docs.isEmpty) {
+        print("❌ Message not found in Firestore.");
+        return;
+      }
+
+      final docToDelete = snapshot.docs.first;
+      final message = MessageModel.fromMap(docToDelete.data());
+      await docToDelete.reference.delete();
+
+      // حذف من القائمة في الذاكرة
+      messages.removeWhere((msg) => msg.id == messageId);
+
+      // فحص ما إذا كانت الرسالة هي الأخيرة
+      final latestSnapshot = await userMessagesRef
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
+
+      final lastMsg = latestSnapshot.docs.isNotEmpty
+          ? MessageModel.fromMap(latestSnapshot.docs.first.data())
+          : null;
+
+      final wasDeletedLatest = lastMsg == null ||
+          message.timestamp.isAtSameMomentAs(lastMsg.timestamp) ||
+          message.timestamp.isAfter(lastMsg.timestamp);
+
+      if (wasDeletedLatest) {
+        // تحديث المحادثة الأخيرة للمستخدم الحالي فقط
+        final newLastSnapshot = await userMessagesRef
+            .orderBy('timestamp', descending: true)
+            .limit(1)
+            .get();
+
+        final newLast = newLastSnapshot.docs.isNotEmpty
+            ? MessageModel.fromMap(newLastSnapshot.docs.first.data())
+            : null;
+
+        final preview = switch (newLast?.contentType) {
+          'image' => 'Image 🖼️',
+          'video' => 'Video 🎥',
+          'audio' => 'Audio 🎵',
+          _ => newLast?.content ?? '',
+        };
+
+        final userChatRef = _firestore
+            .collection('users')
+            .doc(senderId)
+            .collection('chats')
+            .doc(receiverId);
+
+        await userChatRef.set({
+          'lastMessage': preview,
+          'timestamp': newLast != null
+              ? Timestamp.fromDate(newLast.timestamp)
+              : FieldValue.delete(),
+        }, SetOptions(merge: true));
+
+        print("✅ lastMessage updated for current user only to: $preview");
+      } else {
+        print("✅ Message deleted without updating lastMessage.");
+      }
+    } catch (e) {
+      print("❌ Error deleting message locally: $e");
+    }
+  }
+
+
+
+
+
+  Future<void> deleteMessageForAll(String messageId, String receiverId) async {
+    try {
+      final String senderId = box.read('user_id');
 
       var paths = [
         _firestore
@@ -240,11 +353,68 @@ class ChatController extends GetxController {
           await doc.reference.delete();
         }
       }
+
+      // تحديث قائمة الرسائل في الذاكرة فقط
       messages.removeWhere((msg) => msg.id == messageId);
+
+      // تحديث lastMessage في الطرفين
+      await _updateLastMessageAfterDelete(senderId, receiverId);
+
     } catch (e) {
-      print("Error deleting message for all: $e");
+      print("❌ Error deleting message for all: $e");
     }
   }
+
+  Future<void> _updateLastMessageAfterDelete(String senderId, String receiverId) async {
+    try {
+      // المسار إلى رسائل المحادثة (من Firestore)
+      final messagesRef = _firestore
+          .collection('users')
+          .doc(senderId)
+          .collection('chats')
+          .doc(receiverId)
+          .collection('messages');
+
+      // جلب الرسائل مرتبة تنازلياً حسب الوقت
+      final snapshot = await messagesRef.orderBy('timestamp', descending: true).limit(1).get();
+
+      final lastMsg = snapshot.docs.isNotEmpty
+          ? MessageModel.fromMap(snapshot.docs.first.data())
+          : null;
+
+      final lastPreview = switch (lastMsg?.contentType) {
+        'image' => 'Image 🖼️',
+        'video' => 'Video 🎥',
+        'audio' => 'Audio 🎵',
+        _ => lastMsg?.content ?? '',
+      };
+
+      final senderChatRef = _firestore
+          .collection('users')
+          .doc(senderId)
+          .collection('chats')
+          .doc(receiverId);
+
+      final receiverChatRef = _firestore
+          .collection('users')
+          .doc(receiverId)
+          .collection('chats')
+          .doc(senderId);
+
+      final data = {
+        'lastMessage': lastPreview,
+        'timestamp': lastMsg != null ? Timestamp.fromDate(lastMsg.timestamp) : FieldValue.delete(),
+      };
+
+      await senderChatRef.set(data, SetOptions(merge: true));
+      await receiverChatRef.set(data, SetOptions(merge: true));
+
+      print("✅ lastMessage updated to: $lastPreview");
+    } catch (e) {
+      print("❌ Error updating lastMessage: $e");
+    }
+  }
+
 
   Future<void> forwardMessage(MessageModel message) async {
     // Open your contact picker screen or implement logic as needed
@@ -252,10 +422,80 @@ class ChatController extends GetxController {
     // You would typically navigate to a screen and call sendMessage from there
   }
 
-  Future<void> editMessage(MessageModel message) async {
-    // You can open a bottom sheet or dialog to edit the message
-    print("Edit message: ${message.content}");
-    // After editing, update the message in both sender and receiver collections
+// ✅ Step 1: تعديل دالة editMessage داخل ChatController
+  Future<void> editMessage(MessageModel message, String newContent) async {
+    try {
+      final senderId = box.read('user_id');
+      final receiverId = message.receiverId;
+
+      // تحديث المحتوى مؤقتًا في الذاكرة
+      message.content = newContent;
+
+      // ✅ تعديل الرسالة لدى الطرفين في Firestore
+      for (final path in [
+        _firestore
+            .collection('users')
+            .doc(senderId)
+            .collection('chats')
+            .doc(receiverId)
+            .collection('messages'),
+        _firestore
+            .collection('users')
+            .doc(receiverId)
+            .collection('chats')
+            .doc(senderId)
+            .collection('messages'),
+      ]) {
+        final snapshot = await path.where('id', isEqualTo: message.id).get();
+        for (var doc in snapshot.docs) {
+          await doc.reference.update({
+            'content': newContent,
+          });
+        }
+      }
+
+      // ✅ تحديث الرسالة داخل القائمة في الذاكرة
+      int index = messages.indexWhere((m) => m.id == message.id);
+      if (index != -1) {
+        messages[index].content = newContent;
+        messages.refresh();
+      }
+
+      // ✅ تحديث lastMessage إذا كانت هذه هي آخر رسالة
+      final lastMessage = messages.isNotEmpty ? messages.last : null;
+
+      if (lastMessage != null && lastMessage.id == message.id) {
+        final preview = switch (message.contentType) {
+          'image' => 'Image 🖼️',
+          'video' => 'Video 🎥',
+          'audio' => 'Audio 🎵',
+          _ => newContent,
+        };
+
+        final update = {
+          'lastMessage': preview,
+          'timestamp': Timestamp.fromDate(message.timestamp),
+        };
+
+        final senderChatRef = _firestore
+            .collection('users')
+            .doc(senderId)
+            .collection('chats')
+            .doc(receiverId);
+
+        final receiverChatRef = _firestore
+            .collection('users')
+            .doc(receiverId)
+            .collection('chats')
+            .doc(senderId);
+
+        await senderChatRef.set(update, SetOptions(merge: true));
+        await receiverChatRef.set(update, SetOptions(merge: true));
+      }
+
+    } catch (e) {
+      print("❌ Error editing message: $e");
+    }
   }
 
   Future<void> replyToMessage(MessageModel message) async {
@@ -483,7 +723,6 @@ class ChatController extends GetxController {
     }
   }
 
-
   Stream<List<MessageModel>> getMediaMessages(String senderId, String receiverId) {
     return _firestore
         .collection('users')
@@ -491,12 +730,14 @@ class ChatController extends GetxController {
         .collection('chats')
         .doc(receiverId)
         .collection('messages')
-        .where('contentType', whereIn: ['image', 'video', 'audio']) // فلترة حسب نوع المحتوى
+        .where('contentType', whereIn: ['image', 'video', 'audio'])
         .orderBy('timestamp')
         .snapshots()
-        .map((snapshot) => snapshot.docs
-        .map((doc) => MessageModel.fromMap(doc.data()))
-        .toList());
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => MessageModel.fromMap(doc.data(), docId: doc.id))
+          .toList();
+    });
   }
 
 }

@@ -33,6 +33,12 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
     _audioService = Get.find<AudioPlayerService>();
     _messageId = widget.message.id;
 
+    final existing = _audioService.getControllerOrNull(_messageId);
+    if (existing != null && _audioService.isReady(_messageId)) {
+      isWaveformLoaded = true;
+      return;
+    }
+
     Future.microtask(() async {
       await _audioService.initPlayer(widget.message);
       final controller = _audioService.getControllerOrNull(_messageId);

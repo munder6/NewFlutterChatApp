@@ -14,27 +14,22 @@ class AudioPlayerService extends GetxService {
   final Map<String, Rx<Duration>> _currentPosition = {};
 
   PlayerController? getControllerOrNull(String id) => _controllers[id];
-  PlayerController? getController(String id) => _controllers[id];
-
   RxBool? isPlayingRx(String id) => _isPlaying[id];
   RxBool? isReadyRx(String id) => _isReady[id];
   Rx<Duration>? getCurrentPositionRx(String id) => _currentPosition[id];
-
-  bool isPlaying(String id) => _isPlaying[id]?.value ?? false;
   bool isReady(String id) => _isReady[id]?.value ?? false;
-  Duration getCurrentPosition(String id) => _currentPosition[id]?.value ?? Duration.zero;
 
   Future<void> initPlayer(MessageModel message) async {
     final id = message.id;
-    if (_controllers.containsKey(id)) return;
+    if (_controllers.containsKey(id) && isReady(id)) return;
 
     final controller = PlayerController();
     _controllers[id] = controller;
     _isPlaying[id] = false.obs;
     _isReady[id] = false.obs;
-    _currentPosition[id] = Rx<Duration>(Duration.zero);
+    _currentPosition[id] = Rx(Duration.zero);
 
-    final localPath = message.localPath ?? await _getCachedPath(message.content);
+    final localPath = message.localPath ?? await _cacheAudio(message);
     if (localPath == null) return;
 
     try {
@@ -43,7 +38,6 @@ class AudioPlayerService extends GetxService {
         shouldExtractWaveform: true,
         noOfSamples: 200,
       );
-
       _isReady[id]!.value = true;
 
       controller.onCurrentDurationChanged.listen((ms) {
@@ -53,30 +47,22 @@ class AudioPlayerService extends GetxService {
       controller.onCompletion.listen((_) async {
         _isPlaying[id]!.value = false;
         _currentPosition[id]!.value = Duration.zero;
-
         try {
-          // ❗ الحل الحقيقي: إعادة التحضير حتى يسمح بالتشغيل مرة أخرى
           await controller.preparePlayer(
             path: localPath,
             shouldExtractWaveform: false,
             noOfSamples: 200,
           );
-        } catch (e) {
-          print("❌ Error re-preparing player for $id after completion: $e");
-        }
+        } catch (_) {}
       });
     } catch (e) {
-      print('❌ Error preparing player for $id: $e');
+      print('❌ preparePlayer error: $e');
     }
   }
 
   Future<void> togglePlayback(MessageModel message) async {
     final id = message.id;
-
-    // إذا لم يكن جاهزاً، نجهزه أولاً
-    if (!_isReady.containsKey(id) || !_isReady[id]!.value) {
-      await initPlayer(message);
-    }
+    if (!isReady(id)) await initPlayer(message);
 
     final controller = _controllers[id];
     if (controller == null) return;
@@ -85,23 +71,20 @@ class AudioPlayerService extends GetxService {
       await controller.pausePlayer();
       _isPlaying[id]!.value = false;
     } else {
-      // وقف كل الأصوات الأخرى
       for (final entry in _controllers.entries) {
-        final otherId = entry.key;
-        final otherController = entry.value;
-        if (otherId != id && _isPlaying[otherId]?.value == true) {
-          await otherController.pausePlayer();
-          _isPlaying[otherId]?.value = false;
+        if (entry.key != id && _isPlaying[entry.key]?.value == true) {
+          await entry.value.pausePlayer();
+          _isPlaying[entry.key]!.value = false;
         }
       }
-
       await controller.startPlayer();
       _isPlaying[id]!.value = true;
     }
   }
 
-  Future<String?> _getCachedPath(String url) async {
+  Future<String?> _cacheAudio(MessageModel message) async {
     try {
+      final url = message.content;
       final dir = await getApplicationDocumentsDirectory();
       final fileName = md5.convert(utf8.encode(url)).toString() + '.m4a';
       final filePath = '${dir.path}/$fileName';
@@ -112,14 +95,13 @@ class AudioPlayerService extends GetxService {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         await file.writeAsBytes(response.bodyBytes);
+        message.localPath = filePath; // 🔥 احفظ المسار مباشرة
         return filePath;
       }
-
-      return null;
     } catch (e) {
-      print("❌ Error caching audio: $e");
-      return null;
+      print("❌ cache error: $e");
     }
+    return null;
   }
 
   @override

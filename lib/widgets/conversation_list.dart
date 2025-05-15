@@ -1,8 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' show DateFormat; // فقط لجلب DateFormat
 import '../controller/homescreeen_controller.dart';
 import '../models/conversation_model.dart';
 import '../screens/chat_screen.dart';
@@ -40,6 +41,11 @@ class _ConversationListState extends State<ConversationList> {
         });
       }
     });
+  }
+
+  TextDirection getTextDirection(String text) {
+    final isArabic = RegExp(r'[\u0600-\u06FF]').hasMatch(text);
+    return isArabic ? TextDirection.rtl : TextDirection.ltr;
   }
 
   @override
@@ -148,66 +154,83 @@ class _ConversationListState extends State<ConversationList> {
                     stream: widget.homeController.getUserOnlineStatus(conversation.id),
                     builder: (context, onlineSnapshot) {
                       bool isOnline = onlineSnapshot.data ?? false;
-                      return ListTile(
-                        leading: CircleAvatar(
-                          radius: 25,
-                          backgroundImage: CachedNetworkImageProvider(profileImageUrl),
-                        ),
-                        title: Row(
-                          children: [
-                            Text(
-                              conversation.receiverName,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: AppTheme.getTextColor(isDarkMode),
+                      return Stack(
+                        children: [
+                          ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: isDarkMode ? Colors.grey.shade200 : Colors.grey.shade200,
+                              radius: 27,
+                              backgroundImage: CachedNetworkImageProvider(profileImageUrl),
+                            ),
+                            title: Directionality(
+                              textDirection: getTextDirection(conversation.receiverName),
+                              child: Text(
+                                textAlign:  TextAlign.left,
+
+                                conversation.receiverName,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: AppTheme.getTextColor(isDarkMode),
+                                ),
                               ),
                             ),
-                            SizedBox(width: 5),
-                            if (isOnline)
-                              Container(
-                                width: 8,
-                                height: 8,
+                            subtitle: Directionality(
+                              textDirection: getTextDirection(conversation.lastMessage),
+                              child: Text(
+                                textAlign:  TextAlign.left,
+                                typingSnapshot.data == true
+                                    ? "Typing..."
+                                    : conversation.lastMessage,
+                                style: TextStyle(color: Colors.grey),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            trailing: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _formatTimestamp(conversation.timestamp, conversation.unreadMessages),
+                                  style: TextStyle(
+                                    color: conversation.unreadMessages > 0 ? Colors.red : Colors.grey,
+                                    fontSize: 12,
+                                    fontWeight: conversation.unreadMessages > 0 ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                                SizedBox(height: 5),
+                                _buildUnreadMessagesIndicator(conversation.unreadMessages),
+                              ],
+                            ),
+                            onTap: () {
+                              Get.to(() => ChatScreen(
+                                receiverId: user.id,
+                                receiverName: user.fullName,
+                                receiverUsername: user.username,
+                                receiverImage: profileImageUrl,
+                                bio: user.bio,
+                                birthdate: user.birthDate.toString(),
+                              ));
+                            },
+                          ),
+                          if (isOnline)
+                            Positioned(
+                              top: 46,
+                              left: 55,
+                              child: Container(
+                                width: 15,
+                                height: 15,
                                 decoration: BoxDecoration(
                                   color: Colors.green,
                                   shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isDarkMode ? Colors.black : Colors.white,
+                                    width: 2.8,
+                                  ),
                                 ),
                               ),
-                          ],
-                        ),
-                        subtitle: Text(
-                          typingSnapshot.data == true
-                              ? "Typing..."
-                              : conversation.lastMessage,
-                          style: TextStyle(color: Colors.grey),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _formatTimestamp(conversation.timestamp, conversation.unreadMessages),
-                              style: TextStyle(
-                                color: conversation.unreadMessages > 0 ? Colors.red : Colors.grey,
-                                fontSize: 12,
-                                fontWeight: conversation.unreadMessages > 0 ? FontWeight.bold : FontWeight.normal,
-                              ),
                             ),
-                            SizedBox(height: 5),
-                            _buildUnreadMessagesIndicator(conversation.unreadMessages),
-                          ],
-                        ),
-                        onTap: () {
-                          Get.to(() => ChatScreen(
-                            receiverId: user.id,
-                            receiverName: user.fullName,
-                            receiverUsername: user.username,
-                            receiverImage: profileImageUrl,
-                            bio: user.bio,
-                            birthdate: user.birthDate.toString(),
-                          ));
-                        },
+                        ],
                       );
                     },
                   );

@@ -138,7 +138,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
     ).copyWith(fontFamilyFallback: ['NotoColorEmoji']);
 
     return SizedBox(
-      height: 55,
+      // height: 55,
       child: ClipRRect(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
@@ -195,27 +195,62 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
                   ),
                   Expanded(
                     child: Container(
+
+                      // لا تحط height: 40 → لأنه بيكسر التمدد التلقائي
                       decoration: BoxDecoration(
                         color: containerColor.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(50),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                          width: 0.4,
+                          color: isDark ? Colors.white24 : Colors.grey.shade400,
+                        ),
                       ),
                       child: Directionality(
                         textDirection: getTextDirection(_controller.text),
                         child: TextField(
                           controller: _controller,
                           focusNode: _focusNode,
-                          style: inputStyle,
                           onChanged: (_) => setState(() {}),
+                          minLines: 1,
+                          maxLines: 5,
+                          style: defaultTargetPlatform == TargetPlatform.iOS
+                              ? TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w500,
+                            color: iconColor,
+                            fontFamily: '.SF UI Text',
+                            fontFamilyFallback: ['NotoColorEmoji'],
+                          )
+                              : GoogleFonts.notoSansArabic(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: iconColor,
+                          ).copyWith(
+                            fontFamilyFallback: ['NotoColorEmoji'],
+                          ),
                           decoration: InputDecoration(
                             hintText: 'Type a message',
-                            hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26),
+                            hintStyle: TextStyle(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w400,
+                              color: isDark ? Colors.white24 : Colors.black26,
+                              fontFamily: defaultTargetPlatform == TargetPlatform.iOS ? '.SF UI Text' : 'NotoSansArabic',
+                              fontFamilyFallback: ['NotoColorEmoji'],
+                            ),
                             border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
                           ),
+                          textDirection: getTextDirection(_controller.text),
+                          textAlign: getTextDirection(_controller.text) == TextDirection.rtl
+                              ? TextAlign.right
+                              : TextAlign.left,
                         ),
+
                       ),
                     ),
                   ),
+
                   SizedBox(width: 10),
                   _showSend
                       ? CircleAvatar(
@@ -248,7 +283,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
 
   Widget _buildRecordingUI(Color containerColor, Color iconColor) {
     return Container(
-      height: 55,
+      height: 48,
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(

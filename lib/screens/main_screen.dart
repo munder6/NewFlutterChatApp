@@ -79,37 +79,40 @@ class _MainScreenState extends State<MainScreen> {
           index: _selectedIndex,
           children: _screens,
         ),
-        bottomNavigationBar: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 50.0, sigmaY: 50.0),
-            child: Container(
-              height: 65,
-              margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 10),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(
-                    icon: EvaIcons.messageCircle,
-                    label: 'Chats',
-                    index: 0,
-                    isDarkMode: isDarkMode,
-                  ),
-                  _buildNavItem(
-                    icon: EvaIcons.bookOpenOutline,
-                    label: 'Stories',
-                    index: 1,
-                    isDarkMode: isDarkMode,
-                  ),
-                  _buildNavItem(
-                    icon: EvaIcons.settings2Outline,
-                    label: 'Settings',
-                    index: 2,
-                    isDarkMode: isDarkMode,
-                  ),
-                ],
+        bottomNavigationBar: Container(
+          color: isDarkMode ? Colors.grey[900]!.withOpacity(0.1) : Colors.grey[500]!.withOpacity(0.1),
+          child: ClipRRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 100.0, sigmaY: 100.0),
+              child: Container(
+                height: 65,
+                margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildNavItem(
+                      icon: EvaIcons.messageCircle,
+                      label: 'Chats',
+                      index: 0,
+                      isDarkMode: isDarkMode,
+                    ),
+                    _buildNavItem(
+                      icon: EvaIcons.bookOpenOutline,
+                      label: 'Stories',
+                      index: 1,
+                      isDarkMode: isDarkMode,
+                    ),
+                    _buildNavItem(
+                      icon: EvaIcons.settings2Outline,
+                      label: 'Settings',
+                      index: 2,
+                      isDarkMode: isDarkMode,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

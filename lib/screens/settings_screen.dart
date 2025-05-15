@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+// import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:get_storage/get_storage.dart';
@@ -140,7 +140,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              SvgPicture.asset("assets/icons/qrcode.svg", width: 22, color: Colors.blue),
+              // SvgPicture.asset("assets/icons/qrcode.svg", width: 22, color: Colors.blue),
               Text("Settings", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.getTextColor(isDarkMode))),
               GestureDetector(
                 onTap: () => Get.to(() => EditProfileScreen()),

@@ -1,19 +1,16 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:meassagesapp/widgets/reciver_message_card.dart';
 import '../controller/chat_controller.dart';
 import '../models/message_model.dart';
 import 'sender_message_card.dart';
+import 'reciver_message_card.dart';
 
 class MessageList extends StatefulWidget {
-  final List<MessageModel> messages;
   final String currentUserId;
 
   const MessageList({
     super.key,
-    required this.messages,
     required this.currentUserId,
   });
 
@@ -21,129 +18,157 @@ class MessageList extends StatefulWidget {
   State<MessageList> createState() => _MessageListState();
 }
 
-class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
-  late ChatController chatController;
+class _MessageListState extends State<MessageList> {
+  final ChatController chatController = Get.find<ChatController>();
+  bool imagesPreloaded = false;
+  late Worker messageListener;
+
 
   @override
   void initState() {
     super.initState();
-    chatController = Get.find<ChatController>();
-    WidgetsBinding.instance.addObserver(this);
+
+    // مراقبة الرسائل مرة واحدة فقط
+    messageListener = ever(chatController.messages, (_) {
+      if (mounted) _preloadImages();
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (mounted && !imagesPreloaded) {
+        await chatController.preloadSenderImages(chatController.messages);
+        if (mounted) {
+          setState(() => imagesPreloaded = true);
+        }
+      }
+    });
   }
 
-
-
-
+  Future<void> _preloadImages() async {
+    if (!imagesPreloaded && chatController.messages.isNotEmpty) {
+      await chatController.preloadSenderImages(chatController.messages);
+      if (mounted) {
+        setState(() => imagesPreloaded = true);
+      }
+    }
+  }
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    messageListener.dispose(); // مهم: إيقاف الاستماع بعد الخروج
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final messages = widget.messages;
-    final currentUserId = widget.currentUserId;
+    return Obx(() {
+      final messages = chatController.messages.reversed.toList();
 
-    int? lastReadIndex;
-    for (int i = 0; i < messages.length; i++) {
-      if (messages[i].senderId == currentUserId && messages[i].isRead) {
-        lastReadIndex = i;
-        break;
+      if (messages.isEmpty) {
+        return const Center(
+          child: Text("No messages yet..."),
+        );
       }
-    }
 
-    bool receiverSentAfterRead = false;
-    if (lastReadIndex != null) {
-      for (int j = 0; j < lastReadIndex; j++) {
-        if (messages[j].senderId != currentUserId) {
-          receiverSentAfterRead = true;
+      int? lastReadIndex;
+      for (int i = 0; i < messages.length; i++) {
+        if (messages[i].senderId == widget.currentUserId && messages[i].isRead) {
+          lastReadIndex = i;
           break;
         }
       }
-    }
 
-    return ListView.builder(
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      reverse: true,
-      itemCount: messages.length,
-      itemBuilder: (context, index) {
-        final msg = messages[index];
-        final prev = index < messages.length - 1 ? messages[index + 1] : null;
-        final next = index > 0 ? messages[index - 1] : null;
-
-        final isSender = msg.senderId == currentUserId;
-        final currentSender = msg.senderId;
-        final nextSender = next?.senderId;
-
-        bool timeGapExists = false;
-        String? nextMessageTime;
-        if (prev != null) {
-          timeGapExists = _hasTimeGap(prev.timestamp, msg.timestamp);
-          if (timeGapExists) {
-            nextMessageTime = _formatTimestamp(msg.timestamp);
+      bool receiverSentAfterRead = false;
+      if (lastReadIndex != null) {
+        for (int j = 0; j < lastReadIndex; j++) {
+          if (messages[j].senderId != widget.currentUserId) {
+            receiverSentAfterRead = true;
+            break;
           }
         }
+      }
 
-        if (msg.contentType == "video") {
-          chatController.generateAndCacheThumbnail(msg.content).then((_) {
-            if (mounted) setState(() {});
-          });
-        }
+      return ListView.builder(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        reverse: true,
+        itemCount: messages.length,
+        itemBuilder: (context, index) {
+          final msg = messages[index];
+          final prev = index < messages.length - 1 ? messages[index + 1] : null;
+          final next = index > 0 ? messages[index - 1] : null;
 
-        final isLastInConversation = index == 0 ||
-            (next != null && next.senderId != msg.senderId) ||
-            (next != null && _hasTimeGap(msg.timestamp, next.timestamp));
+          final isSender = msg.senderId == widget.currentUserId;
+          final currentSender = msg.senderId;
+          final nextSender = next?.senderId;
 
-        final bool showSeenIndicator = isSender &&
-            msg.isRead &&
-            index == lastReadIndex &&
-            !receiverSentAfterRead;
+          bool timeGapExists = false;
+          String? nextMessageTime;
+          if (prev != null) {
+            timeGapExists = _hasTimeGap(prev.timestamp, msg.timestamp);
+            if (timeGapExists) {
+              nextMessageTime = _formatTimestamp(msg.timestamp);
+            }
+          }
 
-        return Column(
-          crossAxisAlignment:
-          isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            if (timeGapExists) _buildTimeCard(nextMessageTime),
-            isSender
-                ? Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                SenderMessageCard(
+          if (msg.contentType == "video") {
+            chatController.generateAndCacheThumbnail(msg.content).then((_) {
+              if (context.mounted) {
+                (context as Element).markNeedsBuild();
+              }
+            });
+          }
+
+          final isLastInConversation = index == 0 ||
+              (next != null && next.senderId != msg.senderId) ||
+              (next != null && _hasTimeGap(msg.timestamp, next.timestamp));
+
+          final bool showSeenIndicator = isSender &&
+              msg.isRead &&
+              index == lastReadIndex &&
+              !receiverSentAfterRead;
+
+          return Column(
+            crossAxisAlignment: isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: [
+              if (timeGapExists) _buildTimeCard(nextMessageTime),
+              isSender
+                  ? Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  SenderMessageCard(
+                    message: msg,
+                    previousMessage: prev,
+                    nextMessage: next,
+                  ),
+                  if (showSeenIndicator)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 22, top: 2),
+                      child: Text(
+                        'Seen',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
+                ],
+              )
+                  : Padding(
+                padding: EdgeInsets.only(
+                  left: isLastInConversation ? 0 : 38,
+                ),
+                child: ReceiverMessageCard(
                   message: msg,
                   previousMessage: prev,
                   nextMessage: next,
+                  isLastInConversation: isLastInConversation,
                 ),
-                if (showSeenIndicator)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 22, top: 2),
-                    child: Text(
-                      'Seen',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  )
-              ],
-            )
-                : Padding(
-              padding: EdgeInsets.only(
-                left: isLastInConversation ? 0 : 38,
               ),
-              child: ReceiverMessageCard(
-                message: msg,
-                previousMessage: prev,
-                nextMessage: next,
-                isLastInConversation: isLastInConversation,
-              ),
-            ),
-            if (next != null && nextSender != currentSender)
-              SizedBox(height: 10),
-          ],
-        );
-      },
-    );
+              if (next != null && nextSender != currentSender)
+                const SizedBox(height: 10),
+            ],
+          );
+        },
+      );
+    });
   }
 
   bool _hasTimeGap(DateTime prevTime, DateTime currentTime) {
@@ -153,8 +178,8 @@ class _MessageListState extends State<MessageList> with WidgetsBindingObserver {
   Widget _buildTimeCard(String? nextMessageTime) {
     return Center(
       child: Container(
-        margin: EdgeInsets.symmetric(vertical: 15),
-        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+        margin: const EdgeInsets.symmetric(vertical: 15),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
         child: Text(
           nextMessageTime!,
           style: TextStyle(

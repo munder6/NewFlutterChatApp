@@ -1,46 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:hive/hive.dart';
-part 'message_model.g.dart';
 
-@HiveType(typeId: 0)
-class MessageModel extends HiveObject {
-  @HiveField(0)
+class MessageModel {
   final String id;
-
-  @HiveField(1)
   final String senderId;
-
-  @HiveField(2)
   final String receiverId;
-
-  @HiveField(3)
   String content;
-
-  @HiveField(4)
   final String contentType;
-
-  @HiveField(5)
   final bool isRead;
-
-  @HiveField(6)
   final DateTime timestamp;
-
-  @HiveField(7)
   final String receiverName;
-
-  @HiveField(8)
   final String receiverUsername;
-
-  @HiveField(9)
   final String? replyToStoryUrl;
-
-  @HiveField(10)
   final String? replyToStoryType;
-
-  @HiveField(11)
   final String? replyToStoryId;
-
-  @HiveField(12)
   String? localPath;
 
   MessageModel({
@@ -59,25 +31,38 @@ class MessageModel extends HiveObject {
     this.localPath,
   });
 
-  factory MessageModel.fromMap(Map<String, dynamic> map) {
+  /// ✅ factory مع fallback آمن للـ timestamp و id
+  factory MessageModel.fromMap(Map<String, dynamic> map, {String? docId}) {
+    final rawTimestamp = map['timestamp'];
+    final DateTime safeTimestamp;
+
+    if (rawTimestamp is Timestamp) {
+      safeTimestamp = rawTimestamp.toDate();
+    } else if (rawTimestamp is DateTime) {
+      safeTimestamp = rawTimestamp;
+    } else {
+      safeTimestamp = DateTime.now();
+    }
+
     return MessageModel(
-      id: map['id'],
-      senderId: map['senderId'],
-      receiverId: map['receiverId'],
-      content: map['content'],
-      contentType: map['contentType'],
-      isRead: map['isRead'],
-      timestamp: (map['timestamp'] as Timestamp).toDate(),
-      receiverName: map['receiverName'],
-      receiverUsername: map['receiverUsername'],
+      id: map['id'] ?? docId ?? '',
+      senderId: map['senderId'] ?? '',
+      receiverId: map['receiverId'] ?? '',
+      content: map['content'] ?? '',
+      contentType: map['contentType'] ?? 'text',
+      isRead: map['isRead'] ?? false,
+      timestamp: safeTimestamp,
+      receiverName: map['receiverName'] ?? '',
+      receiverUsername: map['receiverUsername'] ?? '',
       replyToStoryUrl: map['replyToStoryUrl'],
       replyToStoryType: map['replyToStoryType'],
       replyToStoryId: map['replyToStoryId'],
-        localPath: map['localPath'],
+      localPath: map['localPath'],
     );
   }
 
-  Map<String, dynamic> toMap() {
+  /// ✅ toMap آمن للتخزين مع خيار استخدام توقيت السيرفر
+  Map<String, dynamic> toMap({bool useServerTimestamp = false}) {
     return {
       'id': id,
       'senderId': senderId,
@@ -85,7 +70,9 @@ class MessageModel extends HiveObject {
       'content': content,
       'contentType': contentType,
       'isRead': isRead,
-      'timestamp': Timestamp.fromDate(timestamp),
+      'timestamp': useServerTimestamp
+          ? FieldValue.serverTimestamp()
+          : Timestamp.fromDate(timestamp),
       'receiverName': receiverName,
       'receiverUsername': receiverUsername,
       'replyToStoryUrl': replyToStoryUrl,

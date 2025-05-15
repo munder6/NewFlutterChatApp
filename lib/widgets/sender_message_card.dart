@@ -1,7 +1,10 @@
+
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../controller/chat_controller.dart';
 import '../focused_menu.dart';
@@ -12,6 +15,7 @@ import 'image_message_bubble.dart';
 import 'reply_to_story_bubble.dart';
 import 'text_message_bubble.dart';
 import 'video_message_bubble.dart';
+import 'dart:ui' as ui;
 
 class SenderMessageCard extends StatelessWidget {
   final MessageModel message;
@@ -116,7 +120,7 @@ class SenderMessageCard extends StatelessWidget {
                 FocusedMenuItem(
                   backgroundColor: menuBg,
                   title: Text(
-                    "Sent at ${DateFormat('dd MMM hh:mm a').format(message.timestamp)}",
+                    "Sent at ${DateFormat('dd MMM hh:mm a').format(message.timestamp.toLocal())}",
                     style: TextStyle(color: textColor),
                   ),
                   onPressed: () {},
@@ -135,13 +139,13 @@ class SenderMessageCard extends StatelessWidget {
                   backgroundColor: menuBg,
                   title: Text("Delete for me", style: TextStyle(color: textColor)),
                   trailingIcon: Icon(EvaIcons.trashOutline, color: iconColor),
-                  onPressed: () => chatController.deleteMessageLocally(message.id),
+                  onPressed: () => chatController.deleteMessageLocally(message.id, message.receiverId),
                 ),
                 FocusedMenuItem(
                   backgroundColor: menuBg,
                   title: Text("Delete for everyone", style: TextStyle(color: Colors.red)),
                   trailingIcon: Icon(EvaIcons.trash2Outline, color: Colors.red),
-                  onPressed: () => chatController.deleteMessageForAll(message.id),
+                  onPressed: () => chatController.deleteMessageForAll(message.id, message.receiverId),
                 ),
                 FocusedMenuItem(
                   backgroundColor: menuBg,
@@ -154,8 +158,12 @@ class SenderMessageCard extends StatelessWidget {
                     backgroundColor: menuBg,
                     title: Text("Edit", style: TextStyle(color: textColor)),
                     trailingIcon: Icon(EvaIcons.edit2Outline, color: iconColor),
-                    onPressed: () => chatController.editMessage(message),
-                  ),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => EditMessageDialog(message: message),
+                      );
+                    },                  ),
                 FocusedMenuItem(
                   backgroundColor: menuBg,
                   title: Text("Reply", style: TextStyle(color: textColor)),
@@ -171,3 +179,151 @@ class SenderMessageCard extends StatelessWidget {
     );
   }
 }
+
+
+class EditMessageDialog extends StatefulWidget {
+  final MessageModel message;
+
+  const EditMessageDialog({super.key, required this.message});
+
+  @override
+  State<EditMessageDialog> createState() => _EditMessageDialogState();
+}
+
+class _EditMessageDialogState extends State<EditMessageDialog> {
+  late TextEditingController _controller;
+  bool isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.message.content);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+
+  ui.TextDirection _getTextDirection(String text) {
+    final isArabic = RegExp(r'[\u0600-\u06FF]').hasMatch(text);
+    return isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr;
+  }
+
+  TextAlign _getTextAlign(String text) {
+    return _getTextDirection(text) == ui.TextDirection.rtl
+        ? TextAlign.right
+        : TextAlign.left;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final platform = defaultTargetPlatform;
+    final Color hintColor = isDark ? Colors.white54 : Colors.black45;
+
+    final baseStyle = platform == TargetPlatform.iOS
+        ? TextStyle(
+      fontSize: 15,
+      fontWeight: FontWeight.w500,
+      color: Colors.white,
+      fontFamily: '.SF UI Text',
+      fontFamilyFallback: ['NotoColorEmoji'],
+    )
+        : GoogleFonts.notoSansArabic(
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      color: Colors.white,
+    ).copyWith(
+      fontFamilyFallback: ['NotoColorEmoji'],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 50.0),
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(10),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.4,
+                    minWidth: MediaQuery.of(context).size.width * 0.4,
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.purple.shade400, Colors.purple.shade700],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: SingleChildScrollView(
+                    child: Directionality(
+                      textDirection: _getTextDirection(_controller.text),
+                      child: TextField(
+                        controller: _controller,
+                        maxLines: null,
+                        onChanged: (_) => setState(() {}),
+                        textAlign: _getTextAlign(_controller.text),
+                        style: baseStyle,
+                        decoration: InputDecoration(
+                          hintText: 'Edit message...',
+                          hintStyle: baseStyle.copyWith(
+                            color: hintColor,
+                            fontWeight: FontWeight.w400,
+                            fontSize: 13.5,
+                          ),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text("Cancel", style: TextStyle(color: Colors.white70)),
+                    ),
+                    TextButton(
+                      onPressed: isSaving
+                          ? null
+                          : () async {
+                        setState(() => isSaving = true);
+                        await Get.find<ChatController>().editMessage(
+                          widget.message,
+                          _controller.text.trim(),
+                        );
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text("Done", style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

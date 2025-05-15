@@ -74,43 +74,47 @@ class _HomeScreenState extends State<HomeScreen> {
       extendBodyBehindAppBar: true,
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(60),
-        child: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 50.0, sigmaY: 50.0),
-            child: Container(
-              height: 110,
-              padding: const EdgeInsets.only(top: 50, left: 20, right: 16),
-              alignment: Alignment.centerLeft,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'messenger',
-                    style: TextStyle(
-                      fontSize: 35,
-                      fontWeight: FontWeight.w700,
-                      color: isDarkMode ? Colors.white : Colors.blue[700],
+        child: Container(
+          color: isDarkMode ? Colors.grey[900]!.withOpacity(0.1) : Colors.grey[500]!.withOpacity(0.1),
+          child: ClipRRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 100.0, sigmaY: 100.0),
+              child: Container(
+                color: Colors.transparent,
+                height: 110,
+                padding: const EdgeInsets.only(top: 50, left: 20, right: 16),
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'messenger',
+                      style: TextStyle(
+                        fontSize: 35,
+                        fontWeight: FontWeight.w700,
+                        color: isDarkMode ? Colors.white : Colors.blue[700],
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(Ionicons.pencil, size: 24, color: isDarkMode ? Colors.white : Colors.blue),
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => _buildBlurredBottomSheet(context, isDarkMode),
-                      );
-                    },
-                  ),
-                ],
+                    IconButton(
+                      icon: Icon(Ionicons.pencil, size: 24, color: isDarkMode ? Colors.white : Colors.blue),
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => _buildBlurredBottomSheet(context, isDarkMode),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.only(top: 0),
+        padding: const EdgeInsets.only(bottom: 0),
         child: Container(
           decoration: BoxDecoration(
             color: backgroundColor,

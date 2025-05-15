@@ -8,13 +8,13 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:image_picker/image_picker.dart';
 import '../app_theme.dart';
 import '../controller/chat_controller.dart';
 import '../controller/user_controller.dart';
 import '../controller/audio_controller.dart';
 import '../models/message_model.dart';
 import '../screens/users_profils_screens.dart';
+import '../services/audio_player_service.dart';
 import '../widgets/message_input_widget.dart';
 import '../widgets/message_list.dart';
 
@@ -45,11 +45,14 @@ class _ChatScreenState extends State<ChatScreen> {
   final UserController userController = Get.find<UserController>();
   final box = GetStorage();
   late final AudioController audioController;
+  late final String senderId;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+    senderId = box.read('user_id');
+    chatController.listenToMessages(senderId, widget.receiverId);
     audioController = AudioController()..initRecorder();
     _timer = Timer.periodic(Duration(seconds: 60), (_) {});
   }
@@ -65,7 +68,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final senderId = box.read('user_id');
+    final AudioPlayerService audioService = Get.find<AudioPlayerService>();
 
     if (senderId == null) {
       return Scaffold(
@@ -93,34 +96,28 @@ class _ChatScreenState extends State<ChatScreen> {
         body: Stack(
           children: [
             Positioned.fill(
-              child: StreamBuilder<List<MessageModel>>(
-                stream: chatController.getMessages(senderId, widget.receiverId),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return SizedBox();
+              child: Obx(() {
+                final messages = chatController.messages.reversed.toList();
+
+                if (messages.isEmpty) {
+                  return Center(child: Text("No messages"));
+                }
+
+                for (var msg in messages) {
+                  if (msg.contentType == 'audio') {
+                    audioService.initPlayer(msg);
                   }
+                }
 
-                  final messages = snapshot.data ?? [];
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  chatController.markMessagesAsRead(senderId, widget.receiverId);
+                });
 
-                  if (messages.isNotEmpty) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      chatController.markMessagesAsRead(senderId, widget.receiverId);
-                    });
-                  }
-
-                  if (messages.isEmpty) {
-                    return Center(child: Text("No messages"));
-                  }
-
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 0.0, bottom: 61),
-                    child: MessageList(
-                      messages: messages.reversed.toList(),
-                      currentUserId: senderId,
-                    ),
-                  );
-                },
-              ),
+                return Padding(
+                  padding: const EdgeInsets.only(top: 0.0, bottom: 75),
+                  child: MessageList(currentUserId: senderId),
+                );
+              }),
             ),
 
             Align(
@@ -128,27 +125,42 @@ class _ChatScreenState extends State<ChatScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.vertical(top: Radius.circular(0)),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+                  filter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
                   child: Container(
                     width: double.infinity,
                     padding: EdgeInsets.only(bottom: 0, top: 6, left: 8, right: 8),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? Colors.black.withOpacity(0.7)
-                          : Colors.white.withOpacity(0.7),
+                          ? Colors.grey[900]!.withOpacity(0.1)
+                          : Colors.grey[500]!.withOpacity(0.1),
                     ),
                     child: SafeArea(
                       top: false,
                       child: MessageInputWidget(
                         onSendText: (text) {
-                          chatController.sendMessage(senderId, widget.receiverId, text, "text");
+                          chatController.sendMessage(
+                            senderId,
+                            widget.receiverId,
+                            text,
+                            "text",
+                          );
                         },
                         onSendAudio: (url) {
-                          chatController.sendMessage(senderId, widget.receiverId, url, "audio");
+                          chatController.sendMessage(
+                            senderId,
+                            widget.receiverId,
+                            url,
+                            "audio",
+                          );
                         },
                         audioController: audioController,
                         onMediaPick: (source, isVideo) {
-                          chatController.pickMedia(senderId, widget.receiverId, source, isVideo);
+                          chatController.pickMedia(
+                            senderId,
+                            widget.receiverId,
+                            source,
+                            isVideo,
+                          );
                         },
                       ),
                     ),
@@ -224,8 +236,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                 builder: (context, statusSnap) {
                                   String status = "";
                                   if (statusSnap.hasData && statusSnap.data!.snapshot.value != null) {
-                                    final realtimeData =
-                                    Map<String, dynamic>.from(statusSnap.data!.snapshot.value as Map);
+                                    final realtimeData = Map<String, dynamic>.from(
+                                        statusSnap.data!.snapshot.value as Map);
                                     final isOnline = realtimeData['isOnline'] == true;
                                     final lastSeen = realtimeData['lastSeen'];
 
@@ -234,8 +246,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                     } else if (isOnline) {
                                       status = "Online";
                                     } else if (lastSeen != null) {
-                                      final seen =
-                                      DateTime.fromMillisecondsSinceEpoch(lastSeen);
+                                      final seen = DateTime.fromMillisecondsSinceEpoch(lastSeen);
                                       final diff = DateTime.now().difference(seen);
 
                                       if (diff.inMinutes < 1) {
@@ -255,7 +266,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: (status == "Online" || status == "Typing...")
-                                          ? Colors.green
+                                          ? Colors.purpleAccent
                                           : Colors.grey,
                                     ),
                                   );
@@ -286,7 +297,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       imageUrl: widget.receiverImage,
                       height: 40,
                       width: 40,
-                      fit: BoxFit.fitHeight,
+                      fit: BoxFit.cover,
                       placeholder: (_, __) => CircleAvatar(backgroundColor: Colors.grey.shade300),
                       errorWidget: (_, __, ___) => CircleAvatar(backgroundColor: Colors.grey.shade300),
                     ),

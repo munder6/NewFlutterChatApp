@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+// import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -188,8 +188,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           ],
         ),
         Spacer(),
-        if (showQR)
-          SvgPicture.asset("assets/icons/qrcode.svg", color: Colors.blue[700], width: 28),
+        // if (showQR)
+        //   SvgPicture.asset("assets/icons/qrcode.svg", color: Colors.blue[700], width: 28),
       ],
     );
   }

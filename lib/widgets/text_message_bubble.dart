@@ -51,7 +51,7 @@ class TextMessageBubble extends StatelessWidget {
       fontFamilyFallback: ['NotoColorEmoji'],
     )
         : GoogleFonts.notoSansArabic(
-      fontSize: 12.5,
+      fontSize: 14,
       fontWeight: FontWeight.w500,
       color: textColor,
       height: 1.2,
